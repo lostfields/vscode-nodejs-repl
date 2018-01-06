@@ -1,10 +1,10 @@
-# nodejs-repl README
+# Node.js Interactive window (REPL)
 
-This is the README for your extension "nodejs-repl". After writing up a brief description, we recommend including the following sections.
+Node.js Interactive Window (REPL) for Visual Studio Code using Node.js command line right in your favorite IDE. Simply press CTRL + SHIFT + P and launch "Node.js Interactive window (REPL)". 
 
 ## Features
 
-Node.js Interactive Window (REPL) for Visual Studio Code using Node.js command line right in your favorite IDE. Simply press CTRL + SHIFT + P and launch "Node.js Interactive window (REPL)". 
+Both "return" values and console.log is supported, just as in Node.js REPL since that is used behind the scenes.
 
 ![Screenshot of Node.js Interactive window (REPL)](./preview.gif)
 
