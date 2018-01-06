@@ -20,7 +20,8 @@ import { EventEmitter } from 'events';
 import * as nodeRepl from 'repl';
 import { Writable, Readable } from 'stream';
 
-let parser: Parser;
+let parser: ReplExtension;
+let outputWindow = window.createOutputChannel("NodeJs REPL");
 
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
@@ -34,9 +35,7 @@ export function activate(context: ExtensionContext) {
     // Now provide the implementation of the command with  registerCommand
     // The commandId parameter must match the command field in package.json
     let disposable = commands.registerCommand('extension.sayHello', () => {
-
-        parser = new Parser();
-
+        parser = new ReplExtension();
     });
 
     context.subscriptions.push(disposable);
@@ -46,7 +45,7 @@ export function activate(context: ExtensionContext) {
 export function deactivate() {
 }
 
-class Parser {
+class ReplExtension {
     private changeEventDisposable: Disposable;
     private repl: NodeRepl;
 
@@ -55,135 +54,160 @@ class Parser {
 
     constructor() {
         this.repl = new NodeRepl();
-        this.repl.on('output', (output: Array<{type, text}>) => this.write(output))
 
         this.init();
     }
 
-    public write(output: Array<{type, text}>) {
-        this.outputEditor.edit(edit => {
-            let code = output
-                    .filter(r => r.type != 'output')
-                    .map(r => `${r.type == 'result' ? '// ' : ''}${r.text}`)
-                    .join('\n'),
-                console = output
-                    .filter(r => r.type == 'output')
-                    .map(r => `${r.text}`)
-                    .join('\n');
-
-            edit.replace(new Range(new Position(0,0), new Position(this.outputEditor.document.lineCount, 35768)), '');
-            edit.insert(new Position(0, 0), `${code}\n\n/*\n${console}\n*/`);
-        })
-        
-        console.log(output.map(r => r.text).join('\n'));
-    }
-
     public async init() {
-        const {
-            inputEditor,
-            outputEditor
-        } = await this.showTextDocuments();
+        await this.showTextDocuments();
 
-        this.inputEditor = inputEditor;
-        this.outputEditor = outputEditor;
-
-        this.changeEventDisposable = workspace.onDidChangeTextDocument((event) => {
-            if (event.document !== inputEditor.document) {
-                return;
-            }
-
-            let text = event.contentChanges[0].text;
-
-            this.outputEditor.edit(edit => {
-                if(text.indexOf(';') >= 0) {
-                    this.repl.interprete(inputEditor.document.getText());
+        this.changeEventDisposable = workspace.onDidChangeTextDocument(async (event) => {
+            try 
+            {
+                if (event.document !== this.inputEditor.document) {
+                    return;
                 }
-            });
+                
+                let text = event.contentChanges[0].text;
+
+                outputWindow.show();
+
+                if(text.indexOf(';') >= 0) {
+                    if(this.outputEditor.document.isClosed == true)
+                        await this.showOutputEditor();
+
+                    let output = await this.repl.interpret(this.inputEditor.document.getText()),
+                        code = output
+                            .filter(r => r.type != 'output')
+                            .map(r => `${r.type == 'result' ? '// ' : ''}${r.text}`)
+                            .join('\n'),
+                        console = output
+                            .filter(r => r.type == 'output')
+                            .map(r => `${r.text}`)
+                            .join('\n');
+
+                    await this.outputEditor.edit(async (edit) => {
+                        try {    
+                            edit.replace(new Range(new Position(0,0), new Position(this.outputEditor.document.lineCount, 35768)), '');
+                            edit.insert(new Position(0, 0), `${code}\n\n/*\n${console}\n*/`);
+                        }
+                        catch(err)
+                        {
+                            outputWindow.appendLine(err);
+                        }
+                    });
+                }
+            } 
+            catch(err) {
+                outputWindow.appendLine(err);
+            }
         });
     }
 
-    public async showTextDocuments() {
-        const inputEditor = await window.showTextDocument(await workspace.openTextDocument({ content: '', language: 'javascript' }), ViewColumn.One);
-        const outputEditor = await window.showTextDocument(await workspace.openTextDocument({ content: '', language: 'javascript' }), ViewColumn.Two, true);
+    public async showTextDocuments(): Promise<void> {
+        await Promise.all([this.showInputEditor(), this.showOutputEditor()]);
+    }
 
-        return {
-            inputEditor,
-            outputEditor
-        };
+    private async showOutputEditor() {
+        if(this.outputEditor && this.outputEditor.document.isClosed == false)
+            return;
+
+        this.outputEditor = await window.showTextDocument(await workspace.openTextDocument({ content: '', language: 'javascript' }), ViewColumn.Two, true);
+    }
+
+    private async showInputEditor() {
+        if(this.inputEditor && this.inputEditor.document.isClosed == false)
+            return;
+            
+        this.inputEditor = await window.showTextDocument(await workspace.openTextDocument({ content: '', language: 'javascript' }), ViewColumn.One);
     }
 }
 
-class NodeRepl extends EventEmitter {
+class NodeRepl {
     private replEval: (cmd: string, context: any, filename: string, cb: (err?: Error, result?: string) => void) => void;
 
     constructor() {
-        super();
+        
     }
 
-    public async interprete(code: string): Promise<void> {
-        let output = [],
-            outputConsole = [],
-            lineCount = 0,
-            resultCount = 0;
+    public async interpret(code: string): Promise<Array<{type: string, text: string}>> {
+        return new Promise<Array<{type: string, text: string}>>((resolve, reject) => {
+            try {
+                outputWindow.appendLine(`[${new Date().toLocaleTimeString()}] starting to interpret ${code.length} bytes of code`);
 
-        let inputStream = new Readable({
-                read: () => {
+                let output: Array<{type: string, text: string}> = [],
+                    outputConsole = [],
+                    lineCount = 0,
+                    resultCount = 0;
 
-                }
-            }),
-            outputStream = new Writable({
-                write: (chunk, enc, cb) => {
-                    let out = chunk.toString().trim();
-                    switch(out) {
-                        case 'undefined':
-                        case '...':
-                        case '':
-                            break;
+                let inputStream = new Readable({
+                        read: () => {
 
-                        default:
-                            outputConsole.push(out); break;
+                        }
+                    }),
+                    outputStream = new Writable({
+                        write: (chunk, enc, cb) => {
+                            let out = chunk.toString().trim();
+                            switch(out) {
+                                case 'undefined':
+                                case '...':
+                                case '':
+                                    break;
+
+                                default:
+                                    outputConsole.push(out); 
+                                    outputWindow.appendLine(`  ${out}`);
+                                    break;
+                            }
+                            cb();
+                        }
+                    });
+
+                inputStream.push("");
+
+                let repl = nodeRepl.start({
+                    prompt: '',
+                    input: inputStream,
+                    output: outputStream,
+                    writer: (out) => {
+                        // if not implmented, the result will be outputted to stdout/output stream
                     }
-                    cb();
+                })
+
+                if(this.replEval == null)
+                    this.replEval = (<any>repl).eval; // keep a backup of original eval
+
+                // nice place to read the result in sequence and inject it in the code
+                (<any>repl).eval = (cmd: string, context: any, filename: string, cb: (err?: Error, result?: any) => void) => {
+                    
+                    this.replEval(cmd, context, filename, (err, result) => {
+                        lineCount++;
+
+                        if(result != null) {
+                            output.splice((lineCount - 1) + ++resultCount, 0, { type: 'result', text: result});
+                        }
+
+                        cb(err, result);
+                    })
+                }   
+
+                for(let line of code.split(/\r\n|\n/))
+                {
+                    inputStream.push(`${line}\n`); // tell the REPL about the line of code to see if there is any result coming out of it
+                    output.push({ type: 'code', text: `${line}`});
                 }
-            });
 
-        inputStream.push("");
+                inputStream.on('end', () => {
+                    // finally, done for now.
+                    resolve(output.concat( outputConsole.map(r => <any>{ type: 'output', text: r }) )); 
+                })
 
-        let repl = nodeRepl.start({
-            prompt: '',
-            input: inputStream,
-            output: outputStream,
-            writer: (out) => {
-
+                inputStream.push(null);
+            }
+            catch(ex)
+            {
+                reject(ex);
             }
         })
-
-        if(this.replEval == null)
-            this.replEval = (<any>repl).eval; // keep a backup of original eval
-
-        (<any>repl).eval = (cmd: string, context: any, filename: string, cb: (err?: Error, result?: any) => void) => {
-            
-            this.replEval(cmd, context, filename, (err, result) => {
-                lineCount++;
-
-                if(result != null) {
-                    output.splice((lineCount - 1) + ++resultCount, 0, { type: 'result', text: result});
-                }
-
-                cb(err, result);
-            })
-        }   
-
-        for(let line of code.split(/\r\n|\n/))
-        {
-            inputStream.push(`${line}\n`); 
-            output.push({ type: 'code', text: `${line}`});
-        }
-
-        inputStream.on('end', () => {
-            this.emit('output', output.concat( outputConsole.map(r => <any>{ type: 'output', text: r })));
-        })
-
-        inputStream.push(null);
     }
 }
