@@ -8,6 +8,8 @@ Node.js Interactive Window (REPL) for Visual Studio Code using Node.js command l
 
 ![Screenshot of Node.js Interactive window (REPL)](./preview.gif)
 
+The sidebar is updated every time a semicolon is typed.
+
 ## Requirements
 
 This extension requires Node.js
