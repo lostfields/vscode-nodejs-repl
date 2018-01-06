@@ -1,23 +1,42 @@
 {
     "name": "nodejs-repl",
-    "displayName": "NodeJs REPL",
-    "description": "",
-    "version": "0.0.1",
+    "displayName": "Node.js REPL",
+    "description": "Node.js Interactive window (REPL)",
+    "version": "0.1.0",
     "publisher": "Lostfields",
+    "preview": true,
     "engines": {
-        "vscode": "^1.19.0"
+        "vscode": "^1.7.0"
     },
+    "license": "MIT",
     "categories": [
+        "Languages",
         "Other"
     ],
+    "keywords": [
+        "javascript",
+        "node",
+        "node.js",
+        "nodejs",
+        "repl",
+        "interactive"
+    ],
+    "icon": "icon.png",
+    "bugs": {
+        "url": "https://github.com/lostfields/vscode-nodejs-repl/issues"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/lostfields/vscode-nodejs-repl.git"
+    },
     "activationEvents": [
-        "onCommand:extension.sayHello"
+        "onCommand:extension.nodejsRepl"
     ],
     "main": "./out/extension",
     "contributes": {
         "commands": [{
-            "command": "extension.sayHello",
-            "title": "Hello World"
+            "command": "extension.nodejsRepl",
+            "title": "Node.js Interactive window (REPL)"
         }]
     },
     "scripts": {
@@ -29,7 +48,7 @@
     },
     "devDependencies": {
         "typescript": "^2.6.1",
-        "vscode": "^1.1.6",
+        "vscode": "^1.0.0",
         "@types/node": "^7.0.43",
         "@types/mocha": "^2.2.42"
     }
