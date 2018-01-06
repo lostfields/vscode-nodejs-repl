@@ -6,7 +6,7 @@ This is the README for your extension "nodejs-repl". After writing up a brief de
 
 Node.js Interactive Window (REPL) for Visual Studio Code using Node.js command line right in your favorite IDE. Simply press CTRL + SHIFT + P and launch "Node.js Interactive window (REPL)". 
 
-![Screenshot of Node.js Interactive window (REPL)](./preview.png)
+![Screenshot of Node.js Interactive window (REPL)](./preview.gif)
 
 ## Requirements
 
