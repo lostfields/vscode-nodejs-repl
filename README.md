@@ -18,7 +18,7 @@ None at the moment, but this is a preview so please report any bugs
 
 ## Release Notes
 
-### 0.2.1
+### 0.2.2
 
 - Experimenting with single window instead of split window
 

@@ -27,14 +27,23 @@ let outputWindow = window.createOutputChannel("NodeJs REPL");
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
 export function activate(context: ExtensionContext) {
-    let disposable = commands.registerCommand('extension.nodejsRepl', () => {
+    let disposables = [];
+    
+    disposables.push(commands.registerCommand('extension.nodejsRepl', () => {
         if(!replExt)
             replExt = new ReplExtension();
 
         replExt.showTextDocuments();
-    });
+    }));
+    
+    disposables.push(commands.registerCommand('extension.nodejsReplSingle', () => {
+        if(!replExt)
+            replExt = new ReplExtension();
 
-    context.subscriptions.push(disposable);
+        replExt.showInputEditor();
+    }));  
+
+    context.subscriptions.push(...disposables);
 }
 
 // this method is called when your extension is deactivated
@@ -73,12 +82,16 @@ class ReplExtension {
     }
 
     public async init() {
+
         this.changeEventDisposable = workspace.onDidChangeTextDocument(async (event) => {
             try 
             {
                 if (event.document !== this.inputEditor.document) {
                     return;
                 }
+
+                // remove the decoration as soon as possible since this will annoy the most users
+                this.inputEditor.setDecorations(this.resultDecorationType, [])
                 
                 let text = event.contentChanges[0].text;
 
@@ -125,24 +138,26 @@ class ReplExtension {
                 });
             }
 
-            let resultDecorators: DecorationOptions[] = [],
-                line = -1;
-                        
-            for(var i = 0; i < output.length; i++)
-            {
-                if(output[i].type == 'code')
-                    line++;
+            if(this.outputEditor.document.isClosed == true) {
+                let resultDecorators: DecorationOptions[] = [],
+                    line = -1;
+                            
+                for(var i = 0; i < output.length; i++)
+                {
+                    if(output[i].type == 'code')
+                        line++;
 
-                if(output[i].type == 'result' && line >= 0) {
-                    let prevLastPos = output[i-1].text.length,
-                        startPos = new Position(line, prevLastPos ),
-                        endPos = new Position(line, prevLastPos);
+                    if(output[i].type == 'result' && line >= 0) {
+                        let prevLastPos = output[i-1].text.length,
+                            startPos = new Position(line, prevLastPos + 1 ),
+                            endPos = new Position(line, prevLastPos + 1);
 
-                    resultDecorators.push({ renderOptions: { before: { margin: '0 0 0 1em', contentText: ` // ${output[i].text}`, color: 'green' } }, range: new Range(startPos, endPos) });
+                        resultDecorators.push({ renderOptions: { before: { margin: '0 0 0 1em', contentText: ` // ${output[i].text}`, color: 'green' } }, range: new Range(startPos, endPos) });
+                    }
                 }
-            }
 
-            this.inputEditor.setDecorations(this.resultDecorationType, resultDecorators);
+                this.inputEditor.setDecorations(this.resultDecorationType, resultDecorators);
+            }
         }
         catch(ex) {
             outputWindow.appendLine(ex);
@@ -157,14 +172,14 @@ class ReplExtension {
         await Promise.all([this.showInputEditor(), this.showOutputEditor()]);
     }
 
-    private async showOutputEditor() {
+    public async showOutputEditor() {
         if(this.outputEditor && this.outputEditor.document.isClosed == false)
             return;
 
         this.outputEditor = await window.showTextDocument(await workspace.openTextDocument({ content: '', language: 'javascript' }), ViewColumn.Two, true);
     }
 
-    private async showInputEditor() {
+    public async showInputEditor() {
         if(this.inputEditor && this.inputEditor.document.isClosed == false)
             return;
             

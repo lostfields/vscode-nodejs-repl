@@ -2,7 +2,7 @@
     "name": "nodejs-repl",
     "displayName": "Node.js REPL",
     "description": "Node.js Interactive window (REPL)",
-    "version": "0.2.1",
+    "version": "0.2.2",
     "publisher": "lostfields",
     "preview": true,
     "engines": {
@@ -36,6 +36,10 @@
         "commands": [{
             "command": "extension.nodejsRepl",
             "title": "Node.js Interactive window (REPL)"
+        },
+        {
+            "command": "extension.nodejsReplSingle",
+            "title": "Node.js Interactive window (REPL), single window"
         }]
     },
     "scripts": {
