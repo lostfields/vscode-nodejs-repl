@@ -12,7 +12,7 @@ The sidebar is updated every time a semicolon is typed.
 
 ## Requirements
 
-This extension requires Node.js
+This extension requires Node.js v6+
 
 ## Known Issues
 

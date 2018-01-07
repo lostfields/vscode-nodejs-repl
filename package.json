@@ -3,7 +3,7 @@
     "displayName": "Node.js REPL",
     "description": "Node.js Interactive window (REPL)",
     "version": "0.1.0",
-    "publisher": "Lostfields",
+    "publisher": "lostfields",
     "preview": true,
     "engines": {
         "vscode": "^1.7.0"

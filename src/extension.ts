@@ -44,6 +44,8 @@ class ReplExtension {
     private inputEditor: TextEditor;
     private outputEditor: TextEditor;
 
+    private interpretTimer: NodeJS.Timer = null;
+
     constructor() {
         this.repl = new NodeRepl();
 
@@ -64,36 +66,51 @@ class ReplExtension {
 
                 outputWindow.show();
 
-                if(text.indexOf(';') >= 0) {
-                    if(this.outputEditor.document.isClosed == true)
-                        await this.showOutputEditor();
-
-                    let output = await this.repl.interpret(this.inputEditor.document.getText()),
-                        code = output
-                            .filter(r => r.type != 'output')
-                            .map(r => `${r.type == 'result' ? '// ' : ''}${r.text}`)
-                            .join('\n'),
-                        console = output
-                            .filter(r => r.type == 'output')
-                            .map(r => `${r.text}`)
-                            .join('\n');
-
-                    await this.outputEditor.edit(async (edit) => {
-                        try {    
-                            edit.replace(new Range(new Position(0,0), new Position(this.outputEditor.document.lineCount, 35768)), '');
-                            edit.insert(new Position(0, 0), `${code}\n\n/*\n${console}\n*/`);
-                        }
-                        catch(err)
-                        {
-                            outputWindow.appendLine(err);
-                        }
-                    });
+                if(text.indexOf(';') >= 0 || text.indexOf('\n') >= 0) {
+                    await this.interpret(this.inputEditor.document.getText());
+                } 
+                else {
+                    if(this.interpretTimer)
+                        clearTimeout(this.interpretTimer);
+                    
+                    this.interpretTimer = setTimeout(async () => {
+                        await this.interpret(this.inputEditor.document.getText());
+                    }, 2000);
                 }
-            } 
+            }
             catch(err) {
                 outputWindow.appendLine(err);
             }
         });
+    }
+
+    public async interpret(code: string) {
+        try {
+            if(this.outputEditor.document.isClosed == true)
+                await this.showOutputEditor();
+
+            let output = await this.repl.interpret(code),
+                result = output
+                    .filter(r => r.type != 'output')
+                    .map(r => `${r.type == 'result' ? '// ' : ''}${r.text}`)
+                    .join('\n'),
+                console = output
+                    .filter(r => r.type == 'output')
+                    .map(r => `${r.text}`)
+                    .join('\n');
+
+            await this.outputEditor.edit(async (edit) => {
+                edit.replace(new Range(new Position(0,0), new Position(this.outputEditor.document.lineCount, 35768)), '');
+                edit.insert(new Position(0, 0), `${result}\n\n/*\n${console}\n*/`);
+            });
+        } 
+        catch(ex) {
+            outputWindow.appendLine(ex);
+
+            return false;
+        }
+
+        return true;
     }
 
     public async showTextDocuments(): Promise<void> {
@@ -181,7 +198,9 @@ class NodeRepl {
 
                         cb(err, result);
                     })
-                }   
+                }
+
+                code = this.rewriteImport(code);
 
                 for(let line of code.split(/\r\n|\n/))
                 {
@@ -201,5 +220,27 @@ class NodeRepl {
                 reject(ex);
             }
         })
+    }
+
+    private rewriteImport(code: string): string {
+        let regex = /import\s*(?:(\*\s+as\s)?([\w-_]+),?)?\s*(?:\{([^\}]+)\})?\s+from\s+(["'][^"']+["'])/gi,
+            match;
+
+        return code.replace(regex, (str: string, wildcard: string, module: string, modules: string, from) => {
+            let rewrite = '';
+
+            if(module)
+                rewrite += `${rewrite == '' ? '' : ', '}${module}: _default`;
+        
+            if(modules) 
+                rewrite += `${rewrite == '' ? '' : ', '}${modules
+                    .split(',')
+                    .map(r => r.replace(/\s*([\w-_]+)(?:\s+as\s+([\w-_]))?\s*/gi, (str, moduleName: string, moduleNewName: string) => {
+                        return `${moduleNewName ? `${moduleNewName.trim()}: ` : ``}${moduleName.trim()}`;
+                    }))
+                    .join(', ')}`;
+
+            return `const ${wildcard ? module : `{ ${rewrite} }`} = require(${from})`;
+        });
     }
 }
