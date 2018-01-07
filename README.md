@@ -8,8 +8,6 @@ Both "return" values and console.log is supported, just as in Node.js REPL since
 
 ![Screenshot of Node.js Interactive window (REPL)](./preview.gif)
 
-The sidebar is updated every time a semicolon is typed.
-
 ## Requirements
 
 This extension requires Node.js v6+
@@ -19,6 +17,16 @@ This extension requires Node.js v6+
 None at the moment, but this is a preview so please report any bugs 
 
 ## Release Notes
+
+### 0.2.1
+
+- Experimenting with single window instead of split window
+
+### 0.2.0
+
+- Rewrite for import to require, to support Node.js v6+
+- Parsing when semicolon or new line is typed
+- Autoparsing after 2s after inactivity
 
 ### 0.1.0
 

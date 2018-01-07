@@ -28,7 +28,10 @@ let outputWindow = window.createOutputChannel("NodeJs REPL");
 // your extension is activated the very first time the command is executed
 export function activate(context: ExtensionContext) {
     let disposable = commands.registerCommand('extension.nodejsRepl', () => {
-        replExt = new ReplExtension();
+        if(!replExt)
+            replExt = new ReplExtension();
+
+        replExt.showTextDocuments();
     });
 
     context.subscriptions.push(disposable);
@@ -52,13 +55,11 @@ class ReplExtension {
     // create a decorator type that we use to decorate small numbers
 	private resultDecorationType = window.createTextEditorDecorationType({
 		light: {
-            backgroundColor: 'block',
-            color: 'white'
+            
 		},
 		dark: {
-            backgroundColor: 'white',
-            color: 'black'
-		}
+            
+        }
 	});
 
     constructor() {
@@ -72,8 +73,6 @@ class ReplExtension {
     }
 
     public async init() {
-        await this.showTextDocuments();
-
         this.changeEventDisposable = workspace.onDidChangeTextDocument(async (event) => {
             try 
             {
@@ -85,13 +84,13 @@ class ReplExtension {
 
                 outputWindow.show();
 
+                if(this.interpretTimer)
+                    clearTimeout(this.interpretTimer);
+
                 if(text.indexOf(';') >= 0 || text.indexOf('\n') >= 0) {
                     await this.interpret(this.inputEditor.document.getText());
                 } 
                 else {
-                    if(this.interpretTimer)
-                        clearTimeout(this.interpretTimer);
-                    
                     this.interpretTimer = setTimeout(async () => {
                         await this.interpret(this.inputEditor.document.getText());
                     }, 2000);
@@ -105,37 +104,45 @@ class ReplExtension {
 
     public async interpret(code: string) {
         try {
-            if(this.outputEditor.document.isClosed == true)
-                await this.showOutputEditor();
-
-            let output = await this.repl.interpret(code),
-                result = output
-                    .filter(r => r.type != 'output')
-                    .map(r => `${r.type == 'result' ? '// ' : ''}${r.text.replace(/\r\n|\n/g, '\\n')}`)
-                    .join('\n'),
-                console = output
-                    .filter(r => r.type == 'output')
-                    .map(r => `${r.text}`)
-                    .join('\n');
-
-            await this.outputEditor.edit(async (edit) => {
-                edit.replace(new Range(new Position(0,0), new Position(this.outputEditor.document.lineCount, 35768)), '');
-                edit.insert(new Position(0, 0), `${result}\n\n/*\n${console}\n*/`);
-            });
-
-            // let resultDecorators: DecorationOptions[] = [],
-            //     line = 1;
+            // if(this.outputEditor.document.isClosed == true)
+            //     await this.showOutputEditor();
             
-            // for(var i = 0; i < output.length; i++)
-            // {
-            //     if(output[i].type == 'result') {
-            //         let startPos = new Position(i, 0);
-            //         let endPos = new Position(i, 37568);
+            let output = await this.repl.interpret(code);
 
-            //         resultDecorators.push({ range: new Range(startPos, endPos) });
-            //     }
-            // }
-            // this.outputEditor.setDecorations(this.resultDecorationType, resultDecorators);
+            if(this.outputEditor.document.isClosed == false) {
+                let result = output
+                        .filter(r => r.type != 'output')
+                        .map(r => `${r.type == 'result' ? '// ' : ''}${r.text.replace(/\r\n|\n/g, '\\n')}`)
+                        .join('\n'),
+                    console = output
+                        .filter(r => r.type == 'output')
+                        .map(r => `${r.text}`)
+                        .join('\n');
+                
+                await this.outputEditor.edit(async (edit) => {
+                    edit.replace(new Range(new Position(0,0), new Position(this.outputEditor.document.lineCount, 35768)), '');
+                    edit.insert(new Position(0, 0), `${result}\n\n/*\n${console}\n*/`);
+                });
+            }
+
+            let resultDecorators: DecorationOptions[] = [],
+                line = -1;
+                        
+            for(var i = 0; i < output.length; i++)
+            {
+                if(output[i].type == 'code')
+                    line++;
+
+                if(output[i].type == 'result' && line >= 0) {
+                    let prevLastPos = output[i-1].text.length,
+                        startPos = new Position(line, prevLastPos ),
+                        endPos = new Position(line, prevLastPos);
+
+                    resultDecorators.push({ renderOptions: { before: { margin: '0 0 0 1em', contentText: ` // ${output[i].text}`, color: 'green' } }, range: new Range(startPos, endPos) });
+                }
+            }
+
+            this.inputEditor.setDecorations(this.resultDecorationType, resultDecorators);
         }
         catch(ex) {
             outputWindow.appendLine(ex);
