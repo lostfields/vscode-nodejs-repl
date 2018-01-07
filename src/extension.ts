@@ -13,21 +13,22 @@ import {
     WorkspaceEdit,
     TextEditor,
     Position, 
-    Range
+    Range,
+    DecorationOptions
 } from 'vscode';
 
 import { EventEmitter } from 'events';
 import * as nodeRepl from 'repl';
 import { Writable, Readable } from 'stream';
 
-let parser: ReplExtension;
+let replExt: ReplExtension;
 let outputWindow = window.createOutputChannel("NodeJs REPL");
 
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
 export function activate(context: ExtensionContext) {
     let disposable = commands.registerCommand('extension.nodejsRepl', () => {
-        parser = new ReplExtension();
+        replExt = new ReplExtension();
     });
 
     context.subscriptions.push(disposable);
@@ -35,6 +36,8 @@ export function activate(context: ExtensionContext) {
 
 // this method is called when your extension is deactivated
 export function deactivate() {
+    replExt.dispose();
+    outputWindow.dispose();
 }
 
 class ReplExtension {
@@ -46,10 +49,26 @@ class ReplExtension {
 
     private interpretTimer: NodeJS.Timer = null;
 
+    // create a decorator type that we use to decorate small numbers
+	private resultDecorationType = window.createTextEditorDecorationType({
+		light: {
+            backgroundColor: 'block',
+            color: 'white'
+		},
+		dark: {
+            backgroundColor: 'white',
+            color: 'black'
+		}
+	});
+
     constructor() {
         this.repl = new NodeRepl();
 
         this.init();
+    }
+
+    public dispose() {
+        
     }
 
     public async init() {
@@ -92,7 +111,7 @@ class ReplExtension {
             let output = await this.repl.interpret(code),
                 result = output
                     .filter(r => r.type != 'output')
-                    .map(r => `${r.type == 'result' ? '// ' : ''}${r.text}`)
+                    .map(r => `${r.type == 'result' ? '// ' : ''}${r.text.replace(/\r\n|\n/g, '\\n')}`)
                     .join('\n'),
                 console = output
                     .filter(r => r.type == 'output')
@@ -103,7 +122,21 @@ class ReplExtension {
                 edit.replace(new Range(new Position(0,0), new Position(this.outputEditor.document.lineCount, 35768)), '');
                 edit.insert(new Position(0, 0), `${result}\n\n/*\n${console}\n*/`);
             });
-        } 
+
+            // let resultDecorators: DecorationOptions[] = [],
+            //     line = 1;
+            
+            // for(var i = 0; i < output.length; i++)
+            // {
+            //     if(output[i].type == 'result') {
+            //         let startPos = new Position(i, 0);
+            //         let endPos = new Position(i, 37568);
+
+            //         resultDecorators.push({ range: new Range(startPos, endPos) });
+            //     }
+            // }
+            // this.outputEditor.setDecorations(this.resultDecorationType, resultDecorators);
+        }
         catch(ex) {
             outputWindow.appendLine(ex);
 
@@ -193,7 +226,7 @@ class NodeRepl {
                         lineCount++;
 
                         if(result != null) {
-                            output.splice((lineCount - 1) + ++resultCount, 0, { type: 'result', text: result});
+                            output.splice((lineCount - 1) + ++resultCount, 0, { type: 'result', text: `${result}`});
                         }
 
                         cb(err, result);
@@ -210,7 +243,7 @@ class NodeRepl {
 
                 inputStream.on('end', () => {
                     // finally, done for now.
-                    resolve(output.concat( outputConsole.map(r => <any>{ type: 'output', text: r }) )); 
+                    resolve(output.concat( outputConsole.map(r => <any>{ type: 'output', text: `${r}` }) )); 
                 })
 
                 inputStream.push(null);
