@@ -27,23 +27,20 @@ let outputWindow = window.createOutputChannel("NodeJs REPL");
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
 export function activate(context: ExtensionContext) {
-    let disposables = [];
-    
-    disposables.push(commands.registerCommand('extension.nodejsRepl', () => {
+    context.subscriptions.push(commands.registerCommand('extension.nodejsRepl', () => {
         if(!replExt)
             replExt = new ReplExtension();
 
         replExt.showTextDocuments();
     }));
     
-    disposables.push(commands.registerCommand('extension.nodejsReplSingle', () => {
+    context.subscriptions.push(commands.registerCommand('extension.nodejsReplSingle', () => {
         if(!replExt)
             replExt = new ReplExtension();
 
         replExt.showInputEditor();
     }));  
 
-    context.subscriptions.push(...disposables);
 }
 
 // this method is called when your extension is deactivated
@@ -86,7 +83,7 @@ class ReplExtension {
         this.changeEventDisposable = workspace.onDidChangeTextDocument(async (event) => {
             try 
             {
-                if (event.document !== this.inputEditor.document) {
+                if (!this.inputEditor || this.inputEditor.document !== event.document ) {
                     return;
                 }
 
@@ -122,7 +119,7 @@ class ReplExtension {
             
             let output = await this.repl.interpret(code);
 
-            if(this.outputEditor.document.isClosed == false) {
+            if(this.outputEditor && this.outputEditor.document.isClosed == false) {
                 let result = output
                         .filter(r => r.type != 'output')
                         .map(r => `${r.type == 'result' ? '// ' : ''}${r.text.replace(/\r\n|\n/g, '\\n')}`)
@@ -138,7 +135,7 @@ class ReplExtension {
                 });
             }
 
-            if(this.outputEditor.document.isClosed == true) {
+            if(this.outputEditor == null || this.outputEditor.document.isClosed == true) {
                 let resultDecorators: DecorationOptions[] = [],
                     line = -1;
                             

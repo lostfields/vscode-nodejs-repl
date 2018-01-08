@@ -1,6 +1,10 @@
 # Changelog
 All changes done to Node.JS REPL will be kept here, according to [changelog format](http://keepachangelog.com/)
 
+## [0.2.3] - 2018-01-08
+### Added
+- Fixing single window mode
+
 ## [0.2.2] - 2018-01-07
 ### Added
 - New command for opening only a single window
