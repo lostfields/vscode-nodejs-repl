@@ -14,7 +14,8 @@ import {
     TextEditor,
     Position, 
     Range,
-    DecorationOptions
+    DecorationOptions,
+    DecorationRangeBehavior
 } from 'vscode';
 
 import { EventEmitter } from 'events';
@@ -60,6 +61,7 @@ class ReplExtension {
 
     // create a decorator type that we use to decorate small numbers
 	private resultDecorationType = window.createTextEditorDecorationType({
+        rangeBehavior: DecorationRangeBehavior.ClosedClosed,
 		light: {
             
 		},
@@ -88,7 +90,7 @@ class ReplExtension {
                 }
 
                 // remove the decoration as soon as possible since this will annoy the most users
-                this.inputEditor.setDecorations(this.resultDecorationType, [])
+                //this.inputEditor.setDecorations(this.resultDecorationType, [])
                 
                 let text = event.contentChanges[0].text;
 
