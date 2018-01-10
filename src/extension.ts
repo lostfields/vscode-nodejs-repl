@@ -141,7 +141,7 @@ class ReplExtension {
 
                     decorator.renderOptions.before.contentText = ` ${result.text}`
 
-                    this.editor.setDecorations(this.resultDecorationType, Array.from(resultDecorators.values()));
+                    this.editor.setDecorations(this.resultDecorationType, Array.from<DecorationOptions>(resultDecorators.values()));
                 })
                 .interpret(code);
         }
