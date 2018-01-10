@@ -32,14 +32,14 @@ export function activate(context: ExtensionContext) {
         if(!replExt)
             replExt = new ReplExtension();
 
-        replExt.showInputEditor();
+        replExt.showEditor();
     }));
     
     context.subscriptions.push(commands.registerCommand('extension.nodejsReplSingle', () => {
         if(!replExt)
             replExt = new ReplExtension();
 
-        replExt.showInputEditor();
+        replExt.showEditor();
     }));  
 
 }
@@ -54,8 +54,8 @@ class ReplExtension {
     private changeEventDisposable: Disposable;
     private repl: NodeRepl;
 
-    private inputEditor: TextEditor;
-    private outputEditor: TextEditor;
+    private editor: TextEditor;
+    private document: TextDocument;
 
     private interpretTimer: NodeJS.Timer = null;
 
@@ -85,7 +85,7 @@ class ReplExtension {
         this.changeEventDisposable = workspace.onDidChangeTextDocument(async (event) => {
             try 
             {
-                if (!this.inputEditor || this.inputEditor.document !== event.document ) {
+                if (!this.editor || this.editor.document !== event.document ) {
                     return;
                 }
 
@@ -100,11 +100,11 @@ class ReplExtension {
                     clearTimeout(this.interpretTimer);
 
                 if(text.indexOf(';') >= 0 || text.indexOf('\n') >= 0) {
-                    await this.interpret(this.inputEditor.document.getText());
+                    await this.interpret(this.editor.document.getText());
                 } 
                 else {
                     this.interpretTimer = setTimeout(async () => {
-                        await this.interpret(this.inputEditor.document.getText());
+                        await this.interpret(this.editor.document.getText());
                     }, 2000);
                 }
             }
@@ -119,6 +119,8 @@ class ReplExtension {
             // if(this.outputEditor.document.isClosed == true)
             //     await this.showOutputEditor();
             
+            await this.showEditor();
+
             let results = await new NodeRepl().interpret(code); // this.repl.interpret(code);
 
             // if(this.outputEditor && this.outputEditor.document.isClosed == false) {
@@ -136,6 +138,7 @@ class ReplExtension {
             //         edit.insert(new Position(0, 0), `${result}\n\n/*\n${console}\n*/`);
             //     });
             // }
+            
 
             let resultDecorators: DecorationOptions[] = [],
                 line = -1;
@@ -162,7 +165,7 @@ class ReplExtension {
                 }
             }
 
-            this.inputEditor.setDecorations(this.resultDecorationType, resultDecorators);
+            this.editor.setDecorations(this.resultDecorationType, resultDecorators);
 
         }
         catch(ex) {
@@ -170,33 +173,30 @@ class ReplExtension {
 
             return false;
         }
-
+   
         return true;
     }
 
-    public async showTextDocuments(): Promise<void> {
-        await Promise.all([this.showInputEditor(), this.showOutputEditor()]);
+    public async show(): Promise<void> {
+        this.showEditor();
     }
 
-    public async showOutputEditor() {
-        // if(this.outputEditor && this.outputEditor.document.isClosed == false)
-        //     return;
+    public async openDocument() {
+        if(this.document == null || this.document.isClosed == true)
+            this.document = await workspace.openTextDocument({ content: '', language: 'javascript' });
 
-        // this.outputEditor = await window.showTextDocument(await workspace.openTextDocument({ content: '', language: 'javascript' }), ViewColumn.Two, true);
+        return this.document;
     }
 
-    public async showInputEditor() {
-        if(this.inputEditor && this.inputEditor.document.isClosed == false)
-            return;
-            
-        this.inputEditor = await window.showTextDocument(await workspace.openTextDocument({ content: '', language: 'javascript' }), ViewColumn.One);
+    public async showEditor() {
+        this.editor = await window.showTextDocument(await this.openDocument(), ViewColumn.One, true);
     }
 
     private getTextAtLine(line: number) { 
         let startPos = new Position(line, 0),
             endPos = new Position(line, 37768);
 
-        return this.inputEditor.document.getText(new Range(startPos, endPos));        
+        return this.editor.document.getText(new Range(startPos, endPos));        
     }    
 }
 

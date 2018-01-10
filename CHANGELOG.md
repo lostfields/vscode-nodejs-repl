@@ -1,6 +1,10 @@
 # Changelog
 All changes done to Node.JS REPL will be kept here, according to [changelog format](http://keepachangelog.com/)
 
+## [0.3.1] - 2018-01-10
+### Added
+- Fast fix for disposed editor
+
 ## [0.3.0] - 2018-01-10
 ### Added
 - Support for result, console logs and errors
