@@ -40,7 +40,7 @@ export function activate(context: ExtensionContext) {
             replExt = new ReplExtension();
 
         replExt.showEditor();
-    }));  
+    }));
 
 }
 
@@ -89,10 +89,10 @@ class ReplExtension {
                     return;
                 }
 
-                // remove the decoration as soon as possible since this will annoy the most users
-                //this.inputEditor.setDecorations(this.resultDecorationType, [])
-                
                 let text = event.contentChanges[0].text;
+
+                if(text == "")
+                    this.editor.setDecorations(this.resultDecorationType, []);
 
                 outputWindow.show();
 
@@ -116,57 +116,34 @@ class ReplExtension {
 
     public async interpret(code: string) {
         try {
-            // if(this.outputEditor.document.isClosed == true)
-            //     await this.showOutputEditor();
-            
             await this.showEditor();
 
-            let results = await new NodeRepl().interpret(code); // this.repl.interpret(code);
+            let resultDecorators: Map<number, DecorationOptions> = new Map();
 
-            // if(this.outputEditor && this.outputEditor.document.isClosed == false) {
-            //     let result = output
-            //             .filter(r => r.type != 'output')
-            //             .map(r => `${r.type == 'result' ? '// ' : ''}${r.text.replace(/\r\n|\n/g, '\\n')}`)
-            //             .join('\n'),
-            //         console = output
-            //             .filter(r => r.type == 'output')
-            //             .map(r => `${r.text}`)
-            //             .join('\n');
-                
-            //     await this.outputEditor.edit(async (edit) => {
-            //         edit.replace(new Range(new Position(0,0), new Position(this.outputEditor.document.lineCount, 35768)), '');
-            //         edit.insert(new Position(0, 0), `${result}\n\n/*\n${console}\n*/`);
-            //     });
-            // }
-            
+            new NodeRepl()
+                .on('output', (result) => {
+                    let decorator: DecorationOptions;
+                    if((decorator = resultDecorators.get(result.line)) == null)
+                    { 
+                        let length = this.getTextAtLine(result.line - 1).length,
+                            startPos = new Position(result.line - 1, length + 1 ),
+                            endPos = new Position(result.line - 1, length + 1),
+                            color: string;
 
-            let resultDecorators: DecorationOptions[] = [],
-                line = -1;
-                        
-            for(let result of results)
-            {
-                let length = this.getTextAtLine(result.line - 1).length,
-                    startPos = new Position(result.line - 1, length + 1 ),
-                    endPos = new Position(result.line - 1, length + 1);
+                        switch(result.type) {
+                            case 'result': color = 'green'; break;
+                            case 'error': color = 'red'; break;
+                            case 'console': color = '#457abb'; break;
+                        }
 
-                switch(result.type) {
-                    case 'result':
-                        resultDecorators.push({ renderOptions: { before: { margin: '0 0 0 1em', contentText: ` ${result.text}`, color: 'green' } }, range: new Range(startPos, endPos) });
-                        break;
-                    
-                    case 'error':
-                        resultDecorators.push({ renderOptions: { before: { margin: '0 0 0 1em', contentText: ` ${result.text}`, color: 'red' } }, range: new Range(startPos, endPos) });
-                        break;
+                        resultDecorators.set(result.line, decorator = { renderOptions: { before: { margin: '0 0 0 1em', contentText: '', color: color } }, range: new Range(startPos, endPos) });
+                    }
 
-                    case 'console':
-                        resultDecorators.push({ renderOptions: { before: { margin: '0 0 0 1em', contentText: ` ${result.text}`, color: '#457abb' } }, range: new Range(startPos, endPos) });
-                        break;
-                        
-                }
-            }
+                    decorator.renderOptions.before.contentText = ` ${result.text}`
 
-            this.editor.setDecorations(this.resultDecorationType, resultDecorators);
-
+                    this.editor.setDecorations(this.resultDecorationType, Array.from(resultDecorators.values()));
+                })
+                .interpret(code);
         }
         catch(ex) {
             outputWindow.appendLine(ex);
@@ -189,7 +166,7 @@ class ReplExtension {
     }
 
     public async showEditor() {
-        this.editor = await window.showTextDocument(await this.openDocument(), ViewColumn.One, true);
+        this.editor = await window.showTextDocument(await this.openDocument(), ViewColumn.Active, true);
     }
 
     private getTextAtLine(line: number) { 
@@ -197,139 +174,131 @@ class ReplExtension {
             endPos = new Position(line, 37768);
 
         return this.editor.document.getText(new Range(startPos, endPos));        
-    }    
+    }  
 }
 
-class NodeRepl {
+class NodeRepl extends EventEmitter {
     private replEval: (cmd: string, context: any, filename: string, cb: (err?: Error, result?: string) => void) => void;
+    private output: Map<number, {line: number, type: string, text: string}> = new Map();
 
     constructor() {
-        
+        super();
     }
 
-    public async interpret(code: string): Promise<Array<{line: number, type: string, text: string}>> {
-        return new Promise<Array<{line: number, type: string, text: string}>>((resolve, reject) => {
-            try {
-                outputWindow.appendLine(`[${new Date().toLocaleTimeString()}] starting to interpret ${code.length} bytes of code`);
+    public async interpret(code: string) {
+        try {
+            outputWindow.appendLine(`[${new Date().toLocaleTimeString()}] starting to interpret ${code.length} bytes of code`);
 
-                let output: Array<{line: number, type: string, text: string}> = [],
-                    outputErr = [],
-                    outputConsole = new Map<number, any>(),
-                    lineCount = 0,
-                    resultCount = 0,
-                    _write = (chunk, enc, cb) => {
-                            let out = chunk.toString().trim();
-                            switch(out) {
-                                case 'undefined':
-                                case '...':
-                                case '':
-                                    break;
+            let inputStream = new Readable({
+                    read: () => { }
+                }),
+                lineCount = 0,
+                resultCount = 0;
 
-                                default:
-                                    let match: RegExpExecArray;
+            this.output.clear(); // new interpretation, clear all outputs
 
-                                    if( (match = /(\w+:\s.*)\n\s*at\srepl:\d+:\d+/gi.exec(out)) != null) {
-                                        outputErr.push({line: lineCount, type: 'error', text: match[1]});
-                                        
-                                        outputWindow.appendLine(`  ${match[1]}\n\tat line ${lineCount}`);
-                                    }
+            inputStream.push("");
+
+            let repl = nodeRepl.start({
+                prompt: '',
+                input: inputStream,
+                output: new Writable({
+                    write: (chunk, enc, cb) => {
+                        let out = chunk.toString().trim();
+                        switch(out) {
+                            case 'undefined':
+                            case '...':
+                            case '':
+                                break;
+
+                            default:
+                                let match: RegExpExecArray;
+
+                                if( (match = /(\w+:\s.*)\n\s*at\srepl:\d+:\d+/gi.exec(out)) != null) {
+                                    this.output.set(lineCount, {line: lineCount, type: 'error', text: match[1]});               
+                                    this.emit('output', {line: lineCount, type: 'error', text: match[1]});
                                     
-                                    if( (match = /`\{(\d+)\}`(.*)/gi.exec(out)) != null) {
-                                        let c;
-                                        if( (c = outputConsole.get( Number(match[1]) )) == null)
-                                            outputConsole.set(Number(match[1]), c = { line: Number(match[1]), type: 'console', text: '' });
-
-                                        c.text += (c.text == '' ? '' : ', ') + match[2];
-                                        
-                                        outputWindow.appendLine(`  ${match[2]}`);
-                                    }
+                                    outputWindow.appendLine(`  ${match[1]}\n\tat line ${lineCount}`);
+                                }
+                                
+                                if( (match = /`\{(\d+)\}`(.*)/gi.exec(out)) != null) {
+                                    let output = this.output.get( Number(match[1]) );
+                                    if( output == null)
+                                        this.output.set(Number(match[1]), output = { line: Number(match[1]), type: 'console', text: '' });
                                     
-                                    break;
-                            }
-                            cb();
-                        };
+                                    output.text += (output.text == '' ? '' : ', ') + match[2];
 
-                let inputStream = new Readable({
-                    read: () => {
-                    }
-                });
+                                    this.emit('output', output);
 
-                inputStream.push("");
-
-                let repl = nodeRepl.start({
-                    prompt: '',
-                    input: inputStream,
-                    output: new Writable({
-                        write: _write.bind(this)
-                    }),
-                    writer: (out) => {
-                        // if not implmented, the result will be outputted to stdout/output stream
-                    }
-                })
-
-                if(this.replEval == null)
-                    this.replEval = (<any>repl).eval; // keep a backup of original eval
-
-                // nice place to read the result in sequence and inject it in the code
-                (<any>repl).eval = (cmd: string, context: any, filename: string, cb: (err?: Error, result?: any) => void) => {
-                    lineCount++;
-
-                    this.replEval(cmd, context, filename, (err, result) => {
-                        
-
-                        if(result != null) {
-                            output.push({ line: lineCount, type: 'result', text: `${result}`});
+                                    outputWindow.appendLine(`  ${match[2]}`);
+                                }
+                                
+                                break;
                         }
-
-                        cb(err, result);
-                    })
-                }
-
-                Object.defineProperty(repl.context, '_console', {
-                    
-                    value: function(line: number) {
-                        return {
-                            log: function(text) {
-                                repl.context.console.log(`\`{${line}}\`${text}`);
-                            }, 
-                            warn: function(text) {
-                                repl.context.console.log(`\`{${line}}\`${text}`);
-                            },
-                            error: function(text) {
-                                repl.context.console.log(`\`{${line}}\`${text}`);
-                            },
-                            Console: function() {
-                                return new repl.context.console.Consule(...arguments);
-                            }
-                        }
+                        cb();
                     }
-                });
-            
-                code = this.rewriteImport(code);
-                code = this.rewriteConsole(code);
-
-                for(let line of code.split(/\r\n|\n/))
-                {
-                    inputStream.push(`${line}\n`); // tell the REPL about the line of code to see if there is any result coming out of it
+                }),
+                writer: (out) => {
+                    // if not implmented, the result will be outputted to stdout/output stream
                 }
+            })
 
-                inputStream.on('end', () => {
-                    // finally, done for now.
-                    process.nextTick(() => resolve(
-                        output.concat(
-                            outputErr, 
-                            Array.from(outputConsole.values())
-                        )
-                    ));
+            if(this.replEval == null)
+                this.replEval = (<any>repl).eval; // keep a backup of original eval
+
+            // nice place to read the result in sequence and inject it in the code
+            (<any>repl).eval = (cmd: string, context: any, filename: string, cb: (err?: Error, result?: any) => void) => {
+                lineCount++;
+
+                this.replEval(cmd, context, filename, (err, result) => {
+                    if(result != null) {
+                          this.output.set(lineCount, {line: lineCount, type: 'result', text: `${result}`});
+                        this.emit('output', { line: lineCount, type: 'result', text: `${result}`});
+                    }
+
+                    cb(err, result);
                 })
-
-                inputStream.push(null);
             }
-            catch(ex)
+
+            Object.defineProperty(repl.context, '_console', {
+                
+                value: function(line: number) {
+                    return {
+                        log: function(text) {
+                            repl.context.console.log(`\`{${line}}\`${text}`);
+                        }, 
+                        warn: function(text) {
+                            repl.context.console.log(`\`{${line}}\`${text}`);
+                        },
+                        error: function(text) {
+                            repl.context.console.log(`\`{${line}}\`${text}`);
+                        },
+                        Console: function() {
+                            return new repl.context.console.Consule(...arguments);
+                        }
+                    }
+                }
+            });
+        
+            code = this.rewriteImport(code);
+            code = this.rewriteConsole(code);
+
+            for(let line of code.split(/\r\n|\n/))
             {
-                reject(ex);
+                inputStream.push(`${line}\n`); // tell the REPL about the line of code to see if there is any result coming out of it
             }
-        })
+
+            inputStream.push(`.exit\n`);
+            inputStream.push(null);
+
+            repl.on('exit', () => {
+                
+            })
+        }
+        catch(ex)
+        {
+            outputWindow.appendLine(ex);
+        }
     }
 
     private rewriteImport(code: string): string {

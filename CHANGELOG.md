@@ -1,8 +1,15 @@
 # Changelog
 All changes done to Node.JS REPL will be kept here, according to [changelog format](http://keepachangelog.com/)
 
-## [0.3.1] - 2018-01-10
+## [0.3.2] - 2018-01-10
 ### Added
+- Console output for Promises
+### Changes
+- Editor may be placed in split window at right
+- Better routines for result/console/error outputs but some more work has to be done here.
+
+## [0.3.1] - 2018-01-10
+### Changes
 - Fast fix for disposed editor
 
 ## [0.3.0] - 2018-01-10
@@ -12,7 +19,7 @@ All changes done to Node.JS REPL will be kept here, according to [changelog form
 - Split window since this will take away focus from code
 
 ## [0.2.3] - 2018-01-08
-### Added
+### Changes
 - Fixing single window mode
 
 ## [0.2.2] - 2018-01-07
