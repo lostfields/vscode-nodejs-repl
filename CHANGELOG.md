@@ -1,6 +1,12 @@
 # Changelog
 All changes done to Node.JS REPL will be kept here, according to [changelog format](http://keepachangelog.com/)
 
+## [0.3.0] - 2018-01-10
+### Added
+- Support for result, console logs and errors
+### Removed
+- Split window since this will take away focus from code
+
 ## [0.2.3] - 2018-01-08
 ### Added
 - Fixing single window mode

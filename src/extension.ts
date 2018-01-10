@@ -31,7 +31,7 @@ export function activate(context: ExtensionContext) {
         if(!replExt)
             replExt = new ReplExtension();
 
-        replExt.showTextDocuments();
+        replExt.showInputEditor();
     }));
     
     context.subscriptions.push(commands.registerCommand('extension.nodejsReplSingle', () => {
@@ -117,44 +117,51 @@ class ReplExtension {
             // if(this.outputEditor.document.isClosed == true)
             //     await this.showOutputEditor();
             
-            let output = await this.repl.interpret(code);
+            let results = await new NodeRepl().interpret(code); // this.repl.interpret(code);
 
-            if(this.outputEditor && this.outputEditor.document.isClosed == false) {
-                let result = output
-                        .filter(r => r.type != 'output')
-                        .map(r => `${r.type == 'result' ? '// ' : ''}${r.text.replace(/\r\n|\n/g, '\\n')}`)
-                        .join('\n'),
-                    console = output
-                        .filter(r => r.type == 'output')
-                        .map(r => `${r.text}`)
-                        .join('\n');
+            // if(this.outputEditor && this.outputEditor.document.isClosed == false) {
+            //     let result = output
+            //             .filter(r => r.type != 'output')
+            //             .map(r => `${r.type == 'result' ? '// ' : ''}${r.text.replace(/\r\n|\n/g, '\\n')}`)
+            //             .join('\n'),
+            //         console = output
+            //             .filter(r => r.type == 'output')
+            //             .map(r => `${r.text}`)
+            //             .join('\n');
                 
-                await this.outputEditor.edit(async (edit) => {
-                    edit.replace(new Range(new Position(0,0), new Position(this.outputEditor.document.lineCount, 35768)), '');
-                    edit.insert(new Position(0, 0), `${result}\n\n/*\n${console}\n*/`);
-                });
-            }
+            //     await this.outputEditor.edit(async (edit) => {
+            //         edit.replace(new Range(new Position(0,0), new Position(this.outputEditor.document.lineCount, 35768)), '');
+            //         edit.insert(new Position(0, 0), `${result}\n\n/*\n${console}\n*/`);
+            //     });
+            // }
 
-            if(this.outputEditor == null || this.outputEditor.document.isClosed == true) {
-                let resultDecorators: DecorationOptions[] = [],
-                    line = -1;
-                            
-                for(var i = 0; i < output.length; i++)
-                {
-                    if(output[i].type == 'code')
-                        line++;
+            let resultDecorators: DecorationOptions[] = [],
+                line = -1;
+                        
+            for(let result of results)
+            {
+                let length = this.getTextAtLine(result.line - 1).length,
+                    startPos = new Position(result.line - 1, length + 1 ),
+                    endPos = new Position(result.line - 1, length + 1);
 
-                    if(output[i].type == 'result' && line >= 0) {
-                        let prevLastPos = output[i-1].text.length,
-                            startPos = new Position(line, prevLastPos + 1 ),
-                            endPos = new Position(line, prevLastPos + 1);
+                switch(result.type) {
+                    case 'result':
+                        resultDecorators.push({ renderOptions: { before: { margin: '0 0 0 1em', contentText: ` ${result.text}`, color: 'green' } }, range: new Range(startPos, endPos) });
+                        break;
+                    
+                    case 'error':
+                        resultDecorators.push({ renderOptions: { before: { margin: '0 0 0 1em', contentText: ` ${result.text}`, color: 'red' } }, range: new Range(startPos, endPos) });
+                        break;
 
-                        resultDecorators.push({ renderOptions: { before: { margin: '0 0 0 1em', contentText: ` // ${output[i].text}`, color: 'green' } }, range: new Range(startPos, endPos) });
-                    }
+                    case 'console':
+                        resultDecorators.push({ renderOptions: { before: { margin: '0 0 0 1em', contentText: ` ${result.text}`, color: '#457abb' } }, range: new Range(startPos, endPos) });
+                        break;
+                        
                 }
-
-                this.inputEditor.setDecorations(this.resultDecorationType, resultDecorators);
             }
+
+            this.inputEditor.setDecorations(this.resultDecorationType, resultDecorators);
+
         }
         catch(ex) {
             outputWindow.appendLine(ex);
@@ -170,10 +177,10 @@ class ReplExtension {
     }
 
     public async showOutputEditor() {
-        if(this.outputEditor && this.outputEditor.document.isClosed == false)
-            return;
+        // if(this.outputEditor && this.outputEditor.document.isClosed == false)
+        //     return;
 
-        this.outputEditor = await window.showTextDocument(await workspace.openTextDocument({ content: '', language: 'javascript' }), ViewColumn.Two, true);
+        // this.outputEditor = await window.showTextDocument(await workspace.openTextDocument({ content: '', language: 'javascript' }), ViewColumn.Two, true);
     }
 
     public async showInputEditor() {
@@ -182,6 +189,13 @@ class ReplExtension {
             
         this.inputEditor = await window.showTextDocument(await workspace.openTextDocument({ content: '', language: 'javascript' }), ViewColumn.One);
     }
+
+    private getTextAtLine(line: number) { 
+        let startPos = new Position(line, 0),
+            endPos = new Position(line, 37768);
+
+        return this.inputEditor.document.getText(new Range(startPos, endPos));        
+    }    
 }
 
 class NodeRepl {
@@ -191,23 +205,17 @@ class NodeRepl {
         
     }
 
-    public async interpret(code: string): Promise<Array<{type: string, text: string}>> {
-        return new Promise<Array<{type: string, text: string}>>((resolve, reject) => {
+    public async interpret(code: string): Promise<Array<{line: number, type: string, text: string}>> {
+        return new Promise<Array<{line: number, type: string, text: string}>>((resolve, reject) => {
             try {
                 outputWindow.appendLine(`[${new Date().toLocaleTimeString()}] starting to interpret ${code.length} bytes of code`);
 
-                let output: Array<{type: string, text: string}> = [],
-                    outputConsole = [],
+                let output: Array<{line: number, type: string, text: string}> = [],
+                    outputErr = [],
+                    outputConsole = new Map<number, any>(),
                     lineCount = 0,
-                    resultCount = 0;
-
-                let inputStream = new Readable({
-                        read: () => {
-
-                        }
-                    }),
-                    outputStream = new Writable({
-                        write: (chunk, enc, cb) => {
+                    resultCount = 0,
+                    _write = (chunk, enc, cb) => {
                             let out = chunk.toString().trim();
                             switch(out) {
                                 case 'undefined':
@@ -216,20 +224,42 @@ class NodeRepl {
                                     break;
 
                                 default:
-                                    outputConsole.push(out); 
-                                    outputWindow.appendLine(`  ${out}`);
+                                    let match: RegExpExecArray;
+
+                                    if( (match = /(\w+:\s.*)\n\s*at\srepl:\d+:\d+/gi.exec(out)) != null) {
+                                        outputErr.push({line: lineCount, type: 'error', text: match[1]});
+                                        
+                                        outputWindow.appendLine(`  ${match[1]}\n\tat line ${lineCount}`);
+                                    }
+                                    
+                                    if( (match = /`\{(\d+)\}`(.*)/gi.exec(out)) != null) {
+                                        let c;
+                                        if( (c = outputConsole.get( Number(match[1]) )) == null)
+                                            outputConsole.set(Number(match[1]), c = { line: Number(match[1]), type: 'console', text: '' });
+
+                                        c.text += (c.text == '' ? '' : ', ') + match[2];
+                                        
+                                        outputWindow.appendLine(`  ${match[2]}`);
+                                    }
+                                    
                                     break;
                             }
                             cb();
-                        }
-                    });
+                        };
+
+                let inputStream = new Readable({
+                    read: () => {
+                    }
+                });
 
                 inputStream.push("");
 
                 let repl = nodeRepl.start({
                     prompt: '',
                     input: inputStream,
-                    output: outputStream,
+                    output: new Writable({
+                        write: _write.bind(this)
+                    }),
                     writer: (out) => {
                         // if not implmented, the result will be outputted to stdout/output stream
                     }
@@ -240,29 +270,55 @@ class NodeRepl {
 
                 // nice place to read the result in sequence and inject it in the code
                 (<any>repl).eval = (cmd: string, context: any, filename: string, cb: (err?: Error, result?: any) => void) => {
-                    
+                    lineCount++;
+
                     this.replEval(cmd, context, filename, (err, result) => {
-                        lineCount++;
+                        
 
                         if(result != null) {
-                            output.splice((lineCount - 1) + ++resultCount, 0, { type: 'result', text: `${result}`});
+                            output.push({ line: lineCount, type: 'result', text: `${result}`});
                         }
 
                         cb(err, result);
                     })
                 }
 
+                Object.defineProperty(repl.context, '_console', {
+                    
+                    value: function(line: number) {
+                        return {
+                            log: function(text) {
+                                repl.context.console.log(`\`{${line}}\`${text}`);
+                            }, 
+                            warn: function(text) {
+                                repl.context.console.log(`\`{${line}}\`${text}`);
+                            },
+                            error: function(text) {
+                                repl.context.console.log(`\`{${line}}\`${text}`);
+                            },
+                            Console: function() {
+                                return new repl.context.console.Consule(...arguments);
+                            }
+                        }
+                    }
+                });
+            
                 code = this.rewriteImport(code);
+                code = this.rewriteConsole(code);
 
                 for(let line of code.split(/\r\n|\n/))
                 {
                     inputStream.push(`${line}\n`); // tell the REPL about the line of code to see if there is any result coming out of it
-                    output.push({ type: 'code', text: `${line}`});
                 }
 
                 inputStream.on('end', () => {
                     // finally, done for now.
-                    resolve(output.concat( outputConsole.map(r => <any>{ type: 'output', text: `${r}` }) )); 
+                    process.nextTick(() => resolve(
+                        output.concat(
+                            outputErr, 
+                            Array.from(outputConsole.values())
+                        )
+                    ));
                 })
 
                 inputStream.push(null);
@@ -294,5 +350,25 @@ class NodeRepl {
 
             return `const ${wildcard ? module : `{ ${rewrite} }`} = require(${from})`;
         });
+    }
+
+    private rewriteConsole(code: string): string {
+        let num = 0,
+            out = [];
+        
+        for(let line of code.split(/\r\n|\n/))
+        {
+            out.push(line.replace(/console/g, `_console(${++num})`));
+        }
+
+        return out.join('\n');
+    }
+
+    private isRecoverableError(error) {
+        if (error.name === 'SyntaxError') {
+            return /^(Unexpected end of input|Unexpected token)/.test(error.message);
+        }
+
+        return false;
     }
 }

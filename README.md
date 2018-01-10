@@ -18,6 +18,9 @@ None at the moment, but this is a preview so please report any bugs
 
 ## Release Notes
 
+### 0.3.0
+- Only single window with support for console, result and error
+
 ### 0.2.3
 
 - Experimenting with single window instead of split window
