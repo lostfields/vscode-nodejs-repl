@@ -1,6 +1,11 @@
 # Changelog
 All changes done to Node.JS REPL will be kept here, according to [changelog format](http://keepachangelog.com/)
 
+## [0.3.3] - 2018-01-11
+### Changes
+- Fix for nested method calls in newlines
+- Interpretation of code right after first character after a backspace, fast fix
+
 ## [0.3.2] - 2018-01-10
 ### Added
 - Console output for Promises

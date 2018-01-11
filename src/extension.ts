@@ -81,6 +81,7 @@ class ReplExtension {
     }
 
     public async init() {
+        var lastInput = '';
 
         this.changeEventDisposable = workspace.onDidChangeTextDocument(async (event) => {
             try 
@@ -91,7 +92,7 @@ class ReplExtension {
 
                 let text = event.contentChanges[0].text;
 
-                if(text == "")
+                if(text == '')
                     this.editor.setDecorations(this.resultDecorationType, []);
 
                 outputWindow.show();
@@ -99,7 +100,7 @@ class ReplExtension {
                 if(this.interpretTimer)
                     clearTimeout(this.interpretTimer);
 
-                if(text.indexOf(';') >= 0 || text.indexOf('\n') >= 0) {
+                if(text.indexOf(';') >= 0 || text.indexOf('\n') >= 0 || lastInput == '') {
                     await this.interpret(this.editor.document.getText());
                 } 
                 else {
@@ -107,6 +108,8 @@ class ReplExtension {
                         await this.interpret(this.editor.document.getText());
                     }, 2000);
                 }
+
+                lastInput = text;
             }
             catch(err) {
                 outputWindow.appendLine(err);
@@ -247,12 +250,18 @@ class NodeRepl extends EventEmitter {
                 this.replEval = (<any>repl).eval; // keep a backup of original eval
 
             // nice place to read the result in sequence and inject it in the code
-            (<any>repl).eval = (cmd: string, context: any, filename: string, cb: (err?: Error, result?: any) => void) => {
+            (<any>repl).eval = (cmd: string, context: any, filename: string, cb: (err?: Error, result?: any) => void) => {            
                 lineCount++;
 
                 this.replEval(cmd, context, filename, (err, result) => {
+                    let regex = /\/\*`(\d+)`\*\//gi,
+                        match: RegExpExecArray;
+
                     if(result != null) {
-                          this.output.set(lineCount, {line: lineCount, type: 'result', text: `${result}`});
+                        while((match = regex.exec(cmd)) != null)
+                            lineCount += Number(match[1]);
+
+                        this.output.set(lineCount, {line: lineCount, type: 'result', text: `${result}`});
                         this.emit('output', { line: lineCount, type: 'result', text: `${result}`});
                     }
 
@@ -282,6 +291,7 @@ class NodeRepl extends EventEmitter {
         
             code = this.rewriteImport(code);
             code = this.rewriteConsole(code);
+            code = this.rewriteMethod(code);
 
             for(let line of code.split(/\r\n|\n/))
             {
@@ -333,6 +343,15 @@ class NodeRepl extends EventEmitter {
         }
 
         return out.join('\n');
+    }
+
+    private rewriteMethod(code: string): string {
+        let regex = /([\n\s]+)\./gi,
+            match;
+
+        return code.replace(regex, (str: string, whitespace) => {
+            return `/*\`${whitespace.split(/\r\n|\n/).length - 1}\`*/.`
+        });
     }
 
     private isRecoverableError(error) {
