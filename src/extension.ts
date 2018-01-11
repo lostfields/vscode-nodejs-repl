@@ -125,23 +125,25 @@ class ReplExtension {
 
             new NodeRepl()
                 .on('output', (result) => {
-                    let decorator: DecorationOptions;
+                    let decorator: DecorationOptions,
+                        color: string;
+
+                    switch(result.type) {
+                        case 'result': color = 'green'; break;
+                        case 'error': color = 'red'; break;
+                        case 'console': color = '#457abb'; break;
+                    }
+
                     if((decorator = resultDecorators.get(result.line)) == null)
                     { 
                         let length = this.getTextAtLine(result.line - 1).length,
                             startPos = new Position(result.line - 1, length + 1 ),
-                            endPos = new Position(result.line - 1, length + 1),
-                            color: string;
-
-                        switch(result.type) {
-                            case 'result': color = 'green'; break;
-                            case 'error': color = 'red'; break;
-                            case 'console': color = '#457abb'; break;
-                        }
-
+                            endPos = new Position(result.line - 1, length + 1);
+                        
                         resultDecorators.set(result.line, decorator = { renderOptions: { before: { margin: '0 0 0 1em', contentText: '', color: color } }, range: new Range(startPos, endPos) });
                     }
 
+                    decorator.renderOptions.before.color = color;
                     decorator.renderOptions.before.contentText = ` ${result.text}`
 
                     this.editor.setDecorations(this.resultDecorationType, Array.from<DecorationOptions>(resultDecorators.values()));
@@ -169,7 +171,7 @@ class ReplExtension {
     }
 
     public async showEditor() {
-        this.editor = await window.showTextDocument(await this.openDocument(), ViewColumn.Active, true);
+        this.editor = await window.showTextDocument(await this.openDocument(), ViewColumn.Active, );
     }
 
     private getTextAtLine(line: number) { 
@@ -217,7 +219,7 @@ class NodeRepl extends EventEmitter {
                             default:
                                 let match: RegExpExecArray;
 
-                                if( (match = /(\w+:\s.*)\n\s*at\srepl:\d+:\d+/gi.exec(out)) != null) {
+                                if( (match = /(\w+:\s.*)\n\s*at\s/gi.exec(out)) != null) {
                                     this.output.set(lineCount, {line: lineCount, type: 'error', text: match[1]});               
                                     this.emit('output', {line: lineCount, type: 'error', text: match[1]});
                                     
@@ -242,7 +244,8 @@ class NodeRepl extends EventEmitter {
                     }
                 }),
                 writer: (out) => {
-                    // if not implmented, the result will be outputted to stdout/output stream
+                    if(out == null)
+                        return;
                 }
             })
 
@@ -253,13 +256,50 @@ class NodeRepl extends EventEmitter {
             (<any>repl).eval = (cmd: string, context: any, filename: string, cb: (err?: Error, result?: any) => void) => {            
                 lineCount++;
 
-                this.replEval(cmd, context, filename, (err, result) => {
+                this.replEval(cmd, context, filename, (err, result: any) => {
                     let regex = /\/\*`(\d+)`\*\//gi,
                         match: RegExpExecArray;
+
+                    if(err) {
+                        
+                    }
 
                     if(result != null) {
                         while((match = regex.exec(cmd)) != null)
                             lineCount += Number(match[1]);
+
+                        switch(typeof(result))
+                        {
+                            case 'object':
+
+                                if(result.constructor && result.constructor.name == 'Promise' && result.then) {
+                                    // we have a promise, catch any exceptions
+                                    ((promise, line) => {
+                                        promise
+                                            .then(result => {
+                                                this.output.set(line, {line: line, type: 'result', text: `${result}`});
+                                                this.emit('output', { line: line, type: 'result', text: `${result}`});                                                
+                                            })
+                                            .catch(err => {
+                                                this.output.set(line, {line: line, type: 'error', text: `${err.name}: ${err.message}`});               
+                                                this.emit('output', {line: line, type: 'error', text: `${err.name}: ${err.message}`});
+                                                
+                                                outputWindow.appendLine(`  ${err.name}: ${err.message}\n\tat line ${line}`);
+                                            })
+            
+                                    })(result, lineCount);
+                                    
+                                    return
+                                }
+
+                                if(Array.isArray(result)) {
+                                    result = `[${result.join(',')}]`;
+                                    break;
+                                }
+
+                            default: 
+
+                        }
 
                         this.output.set(lineCount, {line: lineCount, type: 'result', text: `${result}`});
                         this.emit('output', { line: lineCount, type: 'result', text: `${result}`});

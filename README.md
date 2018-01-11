@@ -22,14 +22,15 @@ Note, this is a preview so please report any bugs
 
 Some want all, but right now I think it's working good. I want to look into implementing this though;
 - Import/Require of local files and external modules
-- Support for async/await
 
 ## Release Notes
 
-### 0.3.3
+### 0.3.4
 - Only single window with support for console, result and error
 - Console output for Promises
 - Fix for nested methods call in newlines.
+- Fix for promise results and exceptions
+- Fix for exceptions in functions
 
 ### 0.2.3
 

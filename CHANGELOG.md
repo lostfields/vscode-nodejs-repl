@@ -1,6 +1,11 @@
 # Changelog
 All changes done to Node.JS REPL will be kept here, according to [changelog format](http://keepachangelog.com/)
 
+## [0.3.4] - 2018-01-11
+### Changes
+- Fix for promise results and exceptions
+- Fix for exceptions in functions
+
 ## [0.3.3] - 2018-01-11
 ### Changes
 - Fix for nested method calls in newlines
