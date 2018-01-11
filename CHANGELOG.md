@@ -1,6 +1,10 @@
 # Changelog
 All changes done to Node.JS REPL will be kept here, according to [changelog format](http://keepachangelog.com/)
 
+## [0.3.5] - 2018-01-11
+### Changes
+- Fix for positioning of results when statements returned undefined
+
 ## [0.3.4] - 2018-01-11
 ### Changes
 - Fix for promise results and exceptions

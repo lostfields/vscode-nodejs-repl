@@ -260,16 +260,15 @@ class NodeRepl extends EventEmitter {
                     let regex = /\/\*`(\d+)`\*\//gi,
                         match: RegExpExecArray;
 
-                    if(err) {
-                        
-                    }
-
-                    if(result != null) {
+                    if(!err)  {
                         while((match = regex.exec(cmd)) != null)
                             lineCount += Number(match[1]);
 
                         switch(typeof(result))
                         {
+                            case 'undefined':
+                                break;
+
                             case 'object':
 
                                 if(result.constructor && result.constructor.name == 'Promise' && result.then) {
@@ -289,20 +288,20 @@ class NodeRepl extends EventEmitter {
             
                                     })(result, lineCount);
                                     
-                                    return
+                                    break;
                                 }
 
                                 if(Array.isArray(result)) {
                                     result = `[${result.join(',')}]`;
-                                    break;
                                 }
 
-                            default: 
-
+                                // fall through
+                            
+                            default:
+                                this.output.set(lineCount, {line: lineCount, type: 'result', text: `${result}`});
+                                this.emit('output', { line: lineCount, type: 'result', text: `${result}`});    
                         }
 
-                        this.output.set(lineCount, {line: lineCount, type: 'result', text: `${result}`});
-                        this.emit('output', { line: lineCount, type: 'result', text: `${result}`});
                     }
 
                     cb(err, result);

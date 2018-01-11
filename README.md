@@ -25,12 +25,13 @@ Some want all, but right now I think it's working good. I want to look into impl
 
 ## Release Notes
 
-### 0.3.4
+### 0.3.5
 - Only single window with support for console, result and error
 - Console output for Promises
 - Fix for nested methods call in newlines.
 - Fix for promise results and exceptions
 - Fix for exceptions in functions
+- Fix for positioning of results when statements returned undefined
 
 ### 0.2.3
 
