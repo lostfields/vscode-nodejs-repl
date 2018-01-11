@@ -1,6 +1,11 @@
 # Changelog
 All changes done to Node.JS REPL will be kept here, according to [changelog format](http://keepachangelog.com/)
 
+## [0.4.0] - 2018-01-11
+### Added
+- Import for global modules
+- Hoover message for result/console
+
 ## [0.3.5] - 2018-01-11
 ### Changes
 - Fix for positioning of results when statements returned undefined

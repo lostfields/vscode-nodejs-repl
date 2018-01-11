@@ -21,11 +21,15 @@ Note, this is a preview so please report any bugs
 ## Future developement
 
 Some want all, but right now I think it's working good. I want to look into implementing this though;
-- Import/Require of local files and external modules
+- Make import/require bulletproof
 
 ## Release Notes
 
-### 0.3.5
+### 0.4.0
+- Import/require of global modules
+- Hoover message for result/console
+
+### 0.3.6
 - Only single window with support for console, result and error
 - Console output for Promises
 - Fix for nested methods call in newlines.

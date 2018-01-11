@@ -15,7 +15,8 @@ import {
     Position, 
     Range,
     DecorationOptions,
-    DecorationRangeBehavior
+    DecorationRangeBehavior,
+    MarkdownString
 } from 'vscode';
 
 import { EventEmitter } from 'events';
@@ -100,7 +101,7 @@ class ReplExtension {
                 if(this.interpretTimer)
                     clearTimeout(this.interpretTimer);
 
-                if(text.indexOf(';') >= 0 || text.indexOf('\n') >= 0 || lastInput == '') {
+                if(text.indexOf(';') >= 0 || text.indexOf('\n') >= 0 || (text != '' && lastInput == '')) {
                     await this.interpret(this.editor.document.getText());
                 } 
                 else {
@@ -144,7 +145,14 @@ class ReplExtension {
                     }
 
                     decorator.renderOptions.before.color = color;
-                    decorator.renderOptions.before.contentText = ` ${result.text}`
+                    decorator.renderOptions.before.contentText = ` ${result.text}`;
+                    
+                    decorator.hoverMessage = new MarkdownString(result.type.slice(0, 1).toUpperCase() + result.type.slice(1));
+                    decorator.hoverMessage.appendCodeblock(
+                        result.type == 'console' ? result.value.join('\n') : result.value || result.text,
+                        "javascript"
+                    );
+                    
 
                     this.editor.setDecorations(this.resultDecorationType, Array.from<DecorationOptions>(resultDecorators.values()));
                 })
@@ -184,7 +192,7 @@ class ReplExtension {
 
 class NodeRepl extends EventEmitter {
     private replEval: (cmd: string, context: any, filename: string, cb: (err?: Error, result?: string) => void) => void;
-    private output: Map<number, {line: number, type: string, text: string}> = new Map();
+    private output: Map<number, {line: number, type: string, text: string, value: any}> = new Map();
 
     constructor() {
         super();
@@ -198,7 +206,8 @@ class NodeRepl extends EventEmitter {
                     read: () => { }
                 }),
                 lineCount = 0,
-                resultCount = 0;
+                outputCount = 0,
+                requireIdx = 0;
 
             this.output.clear(); // new interpretation, clear all outputs
 
@@ -220,8 +229,8 @@ class NodeRepl extends EventEmitter {
                                 let match: RegExpExecArray;
 
                                 if( (match = /(\w+:\s.*)\n\s*at\s/gi.exec(out)) != null) {
-                                    this.output.set(lineCount, {line: lineCount, type: 'error', text: match[1]});               
-                                    this.emit('output', {line: lineCount, type: 'error', text: match[1]});
+                                    this.output.set(lineCount, {line: lineCount, type: 'error', text: match[1], value: match[1]});               
+                                    this.emit('output', {line: lineCount, type: 'error', text: match[1], value: match[1]});
                                     
                                     outputWindow.appendLine(`  ${match[1]}\n\tat line ${lineCount}`);
                                 }
@@ -229,9 +238,10 @@ class NodeRepl extends EventEmitter {
                                 if( (match = /`\{(\d+)\}`(.*)/gi.exec(out)) != null) {
                                     let output = this.output.get( Number(match[1]) );
                                     if( output == null)
-                                        this.output.set(Number(match[1]), output = { line: Number(match[1]), type: 'console', text: '' });
+                                        this.output.set(Number(match[1]), output = { line: Number(match[1]), type: 'console', text: '', value: [] });
                                     
-                                    output.text += (output.text == '' ? '' : ', ') + match[2];
+                                    output.text += (output.text == '' ? '' : ', ') + (match[2] || '').replace(/\r\n|\n/g, ' ');
+                                    output.value.push(match[2]);
 
                                     this.emit('output', output);
 
@@ -264,6 +274,7 @@ class NodeRepl extends EventEmitter {
                         while((match = regex.exec(cmd)) != null)
                             lineCount += Number(match[1]);
 
+                        var text;
                         switch(typeof(result))
                         {
                             case 'undefined':
@@ -276,12 +287,12 @@ class NodeRepl extends EventEmitter {
                                     ((promise, line) => {
                                         promise
                                             .then(result => {
-                                                this.output.set(line, {line: line, type: 'result', text: `${result}`});
-                                                this.emit('output', { line: line, type: 'result', text: `${result}`});                                                
+                                                this.output.set(line, {line: line, type: 'result', text: `${result}`, value: result});
+                                                this.emit('output', { line: line, type: 'result', text: `${result}`, value: result});                                                
                                             })
                                             .catch(err => {
-                                                this.output.set(line, {line: line, type: 'error', text: `${err.name}: ${err.message}`});               
-                                                this.emit('output', {line: line, type: 'error', text: `${err.name}: ${err.message}`});
+                                                this.output.set(line, {line: line, type: 'error', text: `${err.name}: ${err.message}`, value: err});               
+                                                this.emit('output', {line: line, type: 'error', text: `${err.name}: ${err.message}`, value: err});
                                                 
                                                 outputWindow.appendLine(`  ${err.name}: ${err.message}\n\tat line ${line}`);
                                             })
@@ -292,14 +303,16 @@ class NodeRepl extends EventEmitter {
                                 }
 
                                 if(Array.isArray(result)) {
-                                    result = `[${result.join(',')}]`;
+                                    text = `[${result.join(',')}]`;
                                 }
 
                                 // fall through
                             
                             default:
-                                this.output.set(lineCount, {line: lineCount, type: 'result', text: `${result}`});
-                                this.emit('output', { line: lineCount, type: 'result', text: `${result}`});    
+                                text = text || result.toString().replace(/(\r\n|\n)/g, ' ');
+
+                                this.output.set(lineCount, {line: lineCount, type: 'result', text: `${text}`, value: result});
+                                this.emit('output', { line: lineCount, type: 'result', text: `${text}`, value: result});    
                         }
 
                     }
@@ -331,6 +344,21 @@ class NodeRepl extends EventEmitter {
             code = this.rewriteImport(code);
             code = this.rewriteConsole(code);
             code = this.rewriteMethod(code);
+
+            let regex = /require\s*\(\s*(['"])([A-Z0-9_~\\\/\.]+)\s*\1\)/gi,
+                match: RegExpExecArray;
+
+            code = code.replace(regex, (str, par, name) => {
+                Object.defineProperty(repl.context, '__require' + requireIdx, {
+                    get: () => {
+                        let a = require(name);
+
+                        return a || {};
+                    }
+                });
+
+                return '__require' + requireIdx;
+            });
 
             for(let line of code.split(/\r\n|\n/))
             {
