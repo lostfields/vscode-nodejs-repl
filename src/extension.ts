@@ -69,7 +69,9 @@ class ReplExtension {
 		dark: {
             
         }
-	});
+    });
+    
+    private resultDecorators: Map<number, DecorationOptions> = new Map();
 
     constructor() {
         this.repl = new NodeRepl();
@@ -91,17 +93,24 @@ class ReplExtension {
                     return;
                 }
 
-                let text = event.contentChanges[0].text;
+                let change = event.contentChanges[0],
+                    text = change.text;
 
-                if(text == '')
-                    this.editor.setDecorations(this.resultDecorationType, []);
+                //if(text == '')
+                // if(text == '' && event.contentChanges[0].rangeLength > 0)
+                //     this.editor.setDecorations(this.resultDecorationType, []);
+                // else
+                if(/\n/.test(text) == false && change.range.isSingleLine == true)
+                    this.editor.setDecorations(this.resultDecorationType, Array.from(this.resultDecorators.values()).filter(d => {
+                        return this.editor.selection.active.line != d.range.start.line;
+                    }));
 
                 outputWindow.show();
 
                 if(this.interpretTimer)
                     clearTimeout(this.interpretTimer);
 
-                if(text.indexOf(';') >= 0 || text.indexOf('\n') >= 0 || (text != '' && lastInput == '')) {
+                if(text.indexOf(';') >= 0 || text.indexOf('\n') >= 0) { // || (text != '' && lastInput == '')) {
                     await this.interpret(this.editor.document.getText());
                 } 
                 else {
@@ -122,12 +131,12 @@ class ReplExtension {
         try {
             await this.showEditor();
 
-            let resultDecorators: Map<number, DecorationOptions> = new Map();
+            this.resultDecorators.clear();
 
             new NodeRepl()
                 .on('exit', () => {
-                    if(resultDecorators.size == 0)
-                        this.editor.setDecorations(this.resultDecorationType, []);    
+                    if(this.resultDecorators.size == 0)
+                        this.editor.setDecorations(this.resultDecorationType, []);
                 })
                 .on('output', (result) => {
                     let decorator: DecorationOptions,
@@ -139,13 +148,13 @@ class ReplExtension {
                         case 'console': color = '#457abb'; break;
                     }
 
-                    if((decorator = resultDecorators.get(result.line)) == null)
+                    if((decorator = this.resultDecorators.get(result.line)) == null)
                     { 
                         let length = this.getTextAtLine(result.line - 1).length,
                             startPos = new Position(result.line - 1, length + 1 ),
                             endPos = new Position(result.line - 1, length + 1);
                         
-                        resultDecorators.set(result.line, decorator = { renderOptions: { before: { margin: '0 0 0 1em', contentText: '', color: color } }, range: new Range(startPos, endPos) });
+                        this.resultDecorators.set(result.line, decorator = { renderOptions: { before: { margin: '0 0 0 1em', contentText: '', color: color } }, range: new Range(startPos, endPos) });
                     }
 
                     decorator.renderOptions.before.color = color;
@@ -157,8 +166,7 @@ class ReplExtension {
                         "javascript"
                     );
                     
-
-                    this.editor.setDecorations(this.resultDecorationType, Array.from<DecorationOptions>(resultDecorators.values()));
+                    this.editor.setDecorations(this.resultDecorationType, Array.from<DecorationOptions>(this.resultDecorators.values()));
                 })
                 .interpret(code);
         }

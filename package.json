@@ -2,7 +2,7 @@
     "name": "nodejs-repl",
     "displayName": "Node.js REPL",
     "description": "Node.js Interactive window (REPL)",
-    "version": "0.4.1",
+    "version": "0.4.2",
     "publisher": "lostfields",
     "preview": true,
     "engines": {

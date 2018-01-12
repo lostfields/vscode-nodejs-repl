@@ -1,6 +1,10 @@
 # Changelog
 All changes done to Node.JS REPL will be kept here, according to [changelog format](http://keepachangelog.com/)
 
+## [0.4.2] - 2018-01-12
+### Changed
+- Text editor optimizations for drawing results/console
+
 ## [0.4.1] - 2018-01-12
 ### Changed
 - Import for global modules only works in debug for extension, not as an extension. Have to look more into this

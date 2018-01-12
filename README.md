@@ -25,7 +25,8 @@ Some want all, but right now I think it's working good. I want to look into impl
 
 ## Release Notes
 
-### 0.4.1
+### 0.4.2
+- Text editor optimizations for drawing results/console
 - First try for require/import, but failed except in debug mode.
 - Annoying bug where error/result didn't get removed when there was an empty document
 - Hoover message for result/console
