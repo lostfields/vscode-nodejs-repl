@@ -82,7 +82,7 @@ class ReplExtension {
     }
 
     public async init() {
-        var lastInput = '';
+        var lastInput = ' ';
 
         this.changeEventDisposable = workspace.onDidChangeTextDocument(async (event) => {
             try 
@@ -125,6 +125,10 @@ class ReplExtension {
             let resultDecorators: Map<number, DecorationOptions> = new Map();
 
             new NodeRepl()
+                .on('exit', () => {
+                    if(resultDecorators.size == 0)
+                        this.editor.setDecorations(this.resultDecorationType, []);    
+                })
                 .on('output', (result) => {
                     let decorator: DecorationOptions,
                         color: string;
@@ -369,7 +373,7 @@ class NodeRepl extends EventEmitter {
             inputStream.push(null);
 
             repl.on('exit', () => {
-                
+                setTimeout(() => this.emit('exit'), 100);
             })
         }
         catch(ex)

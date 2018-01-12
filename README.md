@@ -21,12 +21,13 @@ Note, this is a preview so please report any bugs
 ## Future developement
 
 Some want all, but right now I think it's working good. I want to look into implementing this though;
-- Make import/require bulletproof
+- Import/require of external files/modules
 
 ## Release Notes
 
-### 0.4.0
-- Import/require of global modules
+### 0.4.1
+- First try for require/import, but failed except in debug mode.
+- Annoying bug where error/result didn't get removed when there was an empty document
 - Hoover message for result/console
 
 ### 0.3.6
