@@ -20,7 +20,9 @@ import {
 } from 'vscode';
 
 import { EventEmitter } from 'events';
-import * as nodeRepl from 'repl';
+import * as Repl from 'repl';
+import * as Path from 'path';
+import * as Fs from 'fs';
 import { Writable, Readable } from 'stream';
 
 let replExt: ReplExtension;
@@ -206,8 +208,14 @@ class NodeRepl extends EventEmitter {
     private replEval: (cmd: string, context: any, filename: string, cb: (err?: Error, result?: string) => void) => void;
     private output: Map<number, {line: number, type: string, text: string, value: any}> = new Map();
 
+    private basePath: string;
+
     constructor() {
         super();
+
+        if(workspace.workspaceFolders[0]) {
+            this.basePath = workspace.workspaceFolders[0].uri.fsPath;
+        }
     }
 
     public async interpret(code: string) {
@@ -225,7 +233,7 @@ class NodeRepl extends EventEmitter {
 
             inputStream.push("");
 
-            let repl = nodeRepl.start({
+            let repl = Repl.start({
                 prompt: '',
                 input: inputStream,
                 output: new Writable({
@@ -354,23 +362,10 @@ class NodeRepl extends EventEmitter {
             });
         
             code = this.rewriteImport(code);
+            code = this.rewriteRequire(code);
             code = this.rewriteConsole(code);
+            
             code = this.rewriteMethod(code);
-
-            let regex = /require\s*\(\s*(['"])([A-Z0-9_~\\\/\.]+)\s*\1\)/gi,
-                match: RegExpExecArray;
-
-            code = code.replace(regex, (str, par, name) => {
-                Object.defineProperty(repl.context, '__require' + requireIdx, {
-                    get: () => {
-                        let a = require(name);
-
-                        return a || {};
-                    }
-                });
-
-                return '__require' + requireIdx;
-            });
 
             for(let line of code.split(/\r\n|\n/))
             {
@@ -391,14 +386,15 @@ class NodeRepl extends EventEmitter {
     }
 
     private rewriteImport(code: string): string {
-        let regex = /import\s*(?:(\*\s+as\s)?([\w-_]+),?)?\s*(?:\{([^\}]+)\})?\s+from\s+(["'][^"']+["'])/gi,
+        let regex = /import\s*(?:(\*\s+as\s)?([\w-_]+),?)?\s*(?:\{([^\}]+)\})?\s+from\s+["']([^"']+)["']/gi,
             match;
 
         return code.replace(regex, (str: string, wildcard: string, module: string, modules: string, from) => {
-            let rewrite = '';
+            let rewrite = '',
+                path;
 
             if(module)
-                rewrite += `${rewrite == '' ? '' : ', '}${module}: _default`;
+                rewrite += `${rewrite == '' ? '' : ', '}default: ${module} `;
         
             if(modules) 
                 rewrite += `${rewrite == '' ? '' : ', '}${modules
@@ -407,8 +403,22 @@ class NodeRepl extends EventEmitter {
                         return `${moduleNewName ? `${moduleNewName.trim()}: ` : ``}${moduleName.trim()}`;
                     }))
                     .join(', ')}`;
+                                        
+            return `const ${wildcard ? module : `{ ${rewrite} }`} = require('${from}')`;
+        });
+    }
 
-            return `const ${wildcard ? module : `{ ${rewrite} }`} = require(${from})`;
+    private rewriteRequire(code: string): string {
+        let regex = /require\s*\(\s*(['"])([A-Z0-9_~\\\/\.]+)\s*\1\)/gi,
+            match: RegExpExecArray;
+
+        return code.replace(regex, (str, par, name) => {
+            let path;
+
+            if( Fs.existsSync(path = Path.join(this.basePath, 'node_modules', name)) == false)
+                path = Path.normalize(Path.join(this.basePath, name));
+
+            return `require('${path.replace(/\\/g, '\\\\')}')`;
         });
     }
 
