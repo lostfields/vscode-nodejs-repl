@@ -1,6 +1,10 @@
 # Changelog
 All changes done to Node.JS REPL will be kept here, according to [changelog format](http://keepachangelog.com/)
 
+## [0.4.4] - 2018-01-14
+### Changed
+- Interpret code right after deleting multiple lines
+
 ## [0.4.3] - 2018-01-13
 ### Changed
 - First try with import of workspace modules

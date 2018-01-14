@@ -98,10 +98,6 @@ class ReplExtension {
                 let change = event.contentChanges[0],
                     text = change.text;
 
-                //if(text == '')
-                // if(text == '' && event.contentChanges[0].rangeLength > 0)
-                //     this.editor.setDecorations(this.resultDecorationType, []);
-                // else
                 if(/\n/.test(text) == false && change.range.isSingleLine == true)
                     this.editor.setDecorations(this.resultDecorationType, Array.from(this.resultDecorators.values()).filter(d => {
                         return this.editor.selection.active.line != d.range.start.line;
@@ -112,7 +108,7 @@ class ReplExtension {
                 if(this.interpretTimer)
                     clearTimeout(this.interpretTimer);
 
-                if(text.indexOf(';') >= 0 || text.indexOf('\n') >= 0) { // || (text != '' && lastInput == '')) {
+                if(text.indexOf(';') >= 0 || text.indexOf('\n') >= 0 || (text == '' && change.range.isSingleLine == false)) {
                     await this.interpret(this.editor.document.getText());
                 } 
                 else {
