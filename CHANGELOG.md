@@ -1,6 +1,10 @@
 # Changelog
 All changes done to Node.JS REPL will be kept here, according to [changelog format](http://keepachangelog.com/)
 
+## [0.4.5] - 2018-01-28
+### Changed
+- Possibility to run REPL for any active javascript editor
+
 ## [0.4.4] - 2018-01-14
 ### Changed
 - Interpret code right after deleting multiple lines

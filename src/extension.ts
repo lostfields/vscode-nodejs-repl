@@ -31,19 +31,39 @@ let outputWindow = window.createOutputChannel("NodeJs REPL");
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
 export function activate(context: ExtensionContext) {
-    context.subscriptions.push(commands.registerCommand('extension.nodejsRepl', () => {
+    context.subscriptions.push(commands.registerCommand('extension.nodejsRepl', async () => {
         if(!replExt)
             replExt = new ReplExtension();
 
-        replExt.showEditor();
+        await replExt.close();
+        await replExt.showEditor();
+        
+        return;
     }));
     
-    context.subscriptions.push(commands.registerCommand('extension.nodejsReplSingle', () => {
+    context.subscriptions.push(commands.registerCommand('extension.nodejsReplCurrent', async () => {
         if(!replExt)
             replExt = new ReplExtension();
 
-        replExt.showEditor();
+        await replExt.close();
+        await replExt.openDocument(true);
+        await replExt.showEditor();
+        await replExt.interpret();
+
+        return;
     }));
+
+    // (async () => {
+    //     for(let document of workspace.textDocuments) {
+    //         if(document.fileName.indexOf('Untitled-') >= 0 && document.languageId == 'javascript') {
+    //             await replExt.showEditor(document);
+    //             await replExt.interpret();
+                
+    //             break;
+    //         }
+    //     }
+    // })()
+    
 
 }
 
@@ -55,6 +75,8 @@ export function deactivate() {
 
 class ReplExtension {
     private changeEventDisposable: Disposable;
+    private changeActiveDisposable: Disposable;
+
     private repl: NodeRepl;
 
     private editor: TextEditor;
@@ -82,12 +104,19 @@ class ReplExtension {
     }
 
     public dispose() {
+        this.changeActiveDisposable.dispose();
+        this.changeEventDisposable.dispose();
         
+        this.repl = null;
     }
 
     public async init() {
-        var lastInput = ' ';
-
+        this.changeActiveDisposable = window.onDidChangeActiveTextEditor(async (editor) => {
+            if(this.editor.document === editor.document) {
+                this.interpret();
+            }
+        });
+        
         this.changeEventDisposable = workspace.onDidChangeTextDocument(async (event) => {
             try 
             {
@@ -103,21 +132,19 @@ class ReplExtension {
                         return this.editor.selection.active.line != d.range.start.line;
                     }));
 
-                outputWindow.show();
+                outputWindow.show(true);
 
                 if(this.interpretTimer)
                     clearTimeout(this.interpretTimer);
 
                 if(text.indexOf(';') >= 0 || text.indexOf('\n') >= 0 || (text == '' && change.range.isSingleLine == false)) {
-                    await this.interpret(this.editor.document.getText());
+                    await this.interpret();
                 } 
                 else {
                     this.interpretTimer = setTimeout(async () => {
-                        await this.interpret(this.editor.document.getText());
+                        await this.interpret();
                     }, 2000);
                 }
-
-                lastInput = text;
             }
             catch(err) {
                 outputWindow.appendLine(err);
@@ -125,9 +152,11 @@ class ReplExtension {
         });
     }
 
-    public async interpret(code: string) {
+    public async interpret() {
         try {
             await this.showEditor();
+
+            let code = this.editor.document.getText();
 
             this.resultDecorators.clear();
 
@@ -177,19 +206,40 @@ class ReplExtension {
         return true;
     }
 
-    public async show(): Promise<void> {
-        this.showEditor();
+    public async close(): Promise<void> {
+        this.document = null;
     }
 
-    public async openDocument() {
-        if(this.document == null || this.document.isClosed == true)
-            this.document = await workspace.openTextDocument({ content: '', language: 'javascript' });
+    public async show(): Promise<void> {
+        await this.showEditor();
+    }
+
+    public async openDocument(currentWindow: boolean = false) {
+        if(this.document == null || this.document.isClosed == true) {
+            if(currentWindow && window.activeTextEditor) {
+                if(window.activeTextEditor.document.languageId == 'javascript') {
+                    return this.document = window.activeTextEditor.document;
+                }
+                else {
+                    window.showErrorMessage('Selected document is not Javascript, unable to start REPL here');
+
+                    return null;
+                }
+            }
+            
+            this.document = await workspace.openTextDocument({  content: '', language: 'javascript' });
+        }
 
         return this.document;
     }
 
-    public async showEditor() {
-        this.editor = await window.showTextDocument(await this.openDocument(), ViewColumn.Active, );
+    public async showEditor(document: TextDocument = undefined) {
+        if(document) 
+            this.document = document;
+
+        this.editor = await window.showTextDocument(this.document || await this.openDocument(), ViewColumn.Active, );
+
+        return this.editor;
     }
 
     private getTextAtLine(line: number) { 
@@ -360,9 +410,9 @@ class NodeRepl extends EventEmitter {
             code = this.rewriteImport(code);
             code = this.rewriteRequire(code);
             code = this.rewriteConsole(code);
-            
             code = this.rewriteMethod(code);
 
+            //inputStream.push(`require("${Path.join(this.basePath, "node_modules", "ts-node").replace(/\\/g, '\\\\')}").register({});\n`)
             for(let line of code.split(/\r\n|\n/))
             {
                 inputStream.push(`${line}\n`); // tell the REPL about the line of code to see if there is any result coming out of it

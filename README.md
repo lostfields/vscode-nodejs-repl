@@ -25,11 +25,12 @@ Some want all, but right now I think it's working good. I want to look into impl
 
 ## Release Notes
 
-### 0.4.3
+### 0.4.5
 - Import of workspace modules.
 - Text editor optimizations for drawing results/console
 - Annoying bug where error/result didn't get removed when there was an empty document
 - Hoover message for result/console
+- Possibility to run REPL for any active javascript editor
 
 ### 0.3.6
 - Only single window with support for console, result and error
