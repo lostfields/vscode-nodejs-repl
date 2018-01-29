@@ -53,16 +53,19 @@ export function activate(context: ExtensionContext) {
         return;
     }));
 
-    // (async () => {
-    //     for(let document of workspace.textDocuments) {
-    //         if(document.fileName.indexOf('Untitled-') >= 0 && document.languageId == 'javascript') {
-    //             await replExt.showEditor(document);
-    //             await replExt.interpret();
+    (async () => {
+        for(let document of workspace.textDocuments) {
+            if(document.fileName.indexOf('Untitled-') >= 0 && document.languageId == 'javascript') {
+                if(!replExt)
+                    replExt = new ReplExtension();
+
+                await replExt.showEditor(document);
+                await replExt.interpret();
                 
-    //             break;
-    //         }
-    //     }
-    // })()
+                break;
+            }
+        }
+    })()
     
 
 }

@@ -2,7 +2,7 @@
     "name": "nodejs-repl",
     "displayName": "Node.js REPL",
     "description": "Node.js Interactive window (REPL)",
-    "version": "0.4.6",
+    "version": "0.4.7",
     "publisher": "lostfields",
     "preview": true,
     "engines": {
@@ -29,6 +29,7 @@
         "url": "https://github.com/lostfields/vscode-nodejs-repl.git"
     },
     "activationEvents": [
+        "workspaceContains:package.json",
         "onCommand:extension.nodejsRepl",
         "onCommand:extension.nodejsReplCurrent"
     ],
