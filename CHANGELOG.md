@@ -1,6 +1,10 @@
 # Changelog
 All changes done to Node.JS REPL will be kept here, according to [changelog format](http://keepachangelog.com/)
 
+## [0.4.8] - 2018-02-12
+### Changed
+- Dispose the REPL extension by closing the active document
+
 ## [0.4.7] - 2018-01-29
 ### Changed
 - Runs REPL for first document named Untitled-* when opening new project

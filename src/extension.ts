@@ -32,38 +32,53 @@ let outputWindow = window.createOutputChannel("NodeJs REPL");
 // your extension is activated the very first time the command is executed
 export function activate(context: ExtensionContext) {
     context.subscriptions.push(commands.registerCommand('extension.nodejsRepl', async () => {
-        if(!replExt)
-            replExt = new ReplExtension();
+        try {
+            if(!replExt || replExt.disposed)
+                replExt = new ReplExtension();
 
-        await replExt.close();
-        await replExt.showEditor();
-        
-        return;
+            await replExt.close();
+            await replExt.showEditor();
+            
+            return;
+        }
+        catch(err) {
+            outputWindow.appendLine(err);
+        }
     }));
     
     context.subscriptions.push(commands.registerCommand('extension.nodejsReplCurrent', async () => {
-        if(!replExt)
-            replExt = new ReplExtension();
+        try {
+            if(!replExt || replExt.disposed)
+                replExt = new ReplExtension();
 
-        await replExt.close();
-        await replExt.openDocument(true);
-        await replExt.showEditor();
-        await replExt.interpret();
+            await replExt.close();
+            await replExt.openDocument(true);
+            await replExt.showEditor();
+            await replExt.interpret();
 
-        return;
+            return;
+        }
+        catch(err) {
+            outputWindow.appendLine(err);
+        }
     }));
 
     (async () => {
-        for(let document of workspace.textDocuments) {
-            if(document.fileName.indexOf('Untitled-') >= 0 && document.languageId == 'javascript') {
-                if(!replExt)
-                    replExt = new ReplExtension();
+        try {
+            for(let document of workspace.textDocuments) {
+                if(document.fileName.indexOf('Untitled-') >= 0 && document.languageId == 'javascript') {
+                    if(!replExt || replExt.disposed)
+                        replExt = new ReplExtension();
 
-                await replExt.showEditor(document);
-                await replExt.interpret();
-                
-                break;
+                    await replExt.showEditor(document);
+                    await replExt.interpret();
+                    
+                    break;
+                }
             }
+        }
+        catch(err) {
+            outputWindow.appendLine(err);
         }
     })()
     
@@ -101,12 +116,17 @@ class ReplExtension {
     private resultDecorators: Map<number, DecorationOptions> = new Map();
 
     constructor() {
-        this.repl = new NodeRepl();
-
         this.init();
     }
 
+    public get disposed() { 
+        return this.repl == null;
+    }
+
     public dispose() {
+        if(outputWindow)
+            outputWindow.appendLine(`Disposing REPL extension`)
+
         this.changeActiveDisposable.dispose();
         this.changeEventDisposable.dispose();
         
@@ -114,10 +134,19 @@ class ReplExtension {
     }
 
     public async init() {
+        outputWindow.appendLine(`Initializing REPL extension`)
+
+        this.repl = new NodeRepl();
+
         this.changeActiveDisposable = window.onDidChangeActiveTextEditor(async (editor) => {
             if(this.editor.document === editor.document) {
                 this.interpret();
             }
+        });
+
+        workspace.onDidCloseTextDocument(async (document) => {
+            if(this.editor && this.editor.document == document)
+                this.dispose();
         });
         
         this.changeEventDisposable = workspace.onDidChangeTextDocument(async (event) => {
@@ -229,7 +258,7 @@ class ReplExtension {
                     return null;
                 }
             }
-            
+
             this.document = await workspace.openTextDocument({  content: '', language: 'javascript' });
         }
 
