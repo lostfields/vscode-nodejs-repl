@@ -402,6 +402,8 @@ class NodeRepl extends EventEmitter {
 
                                 if(Array.isArray(result)) {
                                     text = `[${result.join(',')}]`;
+                                } else {
+                                    text = JSON.stringify(result, null, "\t").replace(/\n/g, " ");
                                 }
 
                                 // fall through
