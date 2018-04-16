@@ -31,7 +31,8 @@
     "activationEvents": [
         "workspaceContains:package.json",
         "onCommand:extension.nodejsRepl",
-        "onCommand:extension.nodejsReplCurrent"
+        "onCommand:extension.nodejsReplCurrent",
+        "onCommand:extension.nodejsReplClose"
     ],
     "main": "./out/extension",
     "contributes": {
@@ -41,6 +42,9 @@
         }, {
             "command": "extension.nodejsReplCurrent",
             "title": "Node.js Interactive window (REPL) at selected file"
+        }, {
+            "command": "extension.nodejsReplClose",
+            "title": "Stop Node.js Interactive window (REPL)"
         }]
     },
     "scripts": {

@@ -63,6 +63,21 @@ export function activate(context: ExtensionContext) {
         }
     }));
 
+    context.subscriptions.push(commands.registerCommand('extension.nodejsReplClose', async () => {
+        try {
+            if(replExt && !replExt.disposed) {
+                await replExt.close();
+
+                replExt.dispose()
+            }
+
+        }
+        catch(err) {
+            outputWindow.appendLine(err);
+        }
+    }));
+    
+
     (async () => {
         try {
             for(let document of workspace.textDocuments) {
