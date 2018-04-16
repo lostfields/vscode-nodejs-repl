@@ -291,7 +291,7 @@ class NodeRepl extends EventEmitter {
     constructor() {
         super();
 
-        if(workspace.workspaceFolders[0]) {
+        if(workspace && Array.isArray(workspace.workspaceFolders)) {
             this.basePath = workspace.workspaceFolders[0].uri.fsPath;
         }
     }
@@ -366,55 +366,24 @@ class NodeRepl extends EventEmitter {
 
                 this.replEval(cmd, context, filename, (err, result: any) => {
                     let regex = /\/\*`(\d+)`\*\//gi,
-                        match: RegExpExecArray;
-
+                        match: RegExpExecArray
+                        
                     if(!err)  {
                         while((match = regex.exec(cmd)) != null)
                             lineCount += Number(match[1]);
 
-                        var text;
-                        switch(typeof(result))
-                        {
-                            case 'undefined':
-                                break;
+                        let currentLine = lineCount
 
-                            case 'object':
+                        this.formatOutput(result) // we can't await this since callback of eval needs to be called synchronious
+                            .then(output => {
+                                if(output) {
+                                    this.output.set(currentLine, {line: currentLine, type: output.type, text: output.text, value: output.value});
+                                    this.emit('output', { line: currentLine, type: output.type, text: `${output.text}`, value: output.value});    
 
-                                if(result.constructor && result.constructor.name == 'Promise' && result.then) {
-                                    // we have a promise, catch any exceptions
-                                    ((promise, line) => {
-                                        promise
-                                            .then(result => {
-                                                this.output.set(line, {line: line, type: 'result', text: `${result}`, value: result});
-                                                this.emit('output', { line: line, type: 'result', text: `${result}`, value: result});                                                
-                                            })
-                                            .catch(err => {
-                                                this.output.set(line, {line: line, type: 'error', text: `${err.name}: ${err.message}`, value: err});               
-                                                this.emit('output', {line: line, type: 'error', text: `${err.name}: ${err.message}`, value: err});
-                                                
-                                                outputWindow.appendLine(`  ${err.name}: ${err.message}\n\tat line ${line}`);
-                                            })
-            
-                                    })(result, lineCount);
-                                    
-                                    break;
+                                    if(output.type == 'error') 
+                                        outputWindow.appendLine(`  ${err.name}: ${err.message}\n\tat line ${currentLine}`);
                                 }
-
-                                if(Array.isArray(result)) {
-                                    text = `[${result.join(',')}]`;
-                                } else {
-                                    text = JSON.stringify(result, null, "\t").replace(/\n/g, " ");
-                                }
-
-                                // fall through
-                            
-                            default:
-                                text = text || result.toString().replace(/(\r\n|\n)/g, ' ');
-
-                                this.output.set(lineCount, {line: lineCount, type: 'result', text: `${text}`, value: result});
-                                this.emit('output', { line: lineCount, type: 'result', text: `${text}`, value: result});    
-                        }
-
+                            })
                     }
 
                     cb(err, result);
@@ -463,6 +432,53 @@ class NodeRepl extends EventEmitter {
         {
             outputWindow.appendLine(ex);
         }
+    }
+
+    private async formatOutput(result: any): Promise<{type: 'result' | 'error', text: string, value: any }> {
+        switch(typeof(result))
+        {
+            case 'undefined':
+                break;
+
+            case 'object':
+                if(result.constructor && result.constructor.name == 'Promise' && result.then) {
+                    try {
+                        let ret = await Promise.resolve(result)
+
+                        return this.formatOutput(ret)
+                    }
+                    catch(ex) {
+                        return {
+                            type: 'error',
+                            text: `${ex.name}: ${ex.message}`,
+                            value: ex
+                        }
+                    }
+                }
+
+                let text;
+
+                if(Array.isArray(result)) {
+                    text = JSON.stringify(result);
+                } 
+                else {
+                    text = JSON.stringify(result, null, "\t").replace(/\n/g, " ");
+                }
+
+                return {
+                    type: 'result',
+                    text: text,
+                    value: result
+                }
+
+            default:
+                return {
+                    type: 'result',
+                    text: result.toString().replace(/(\r\n|\n)/g, ' '),
+                    value: result
+                }                
+        }
+
     }
 
     private rewriteImport(code: string): string {
