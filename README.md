@@ -25,7 +25,10 @@ Some want all, but right now I think it's working good. I want to look into impl
 
 ## Release Notes
 
-### 0.4.8
+### 0.4.9
+- Small output fixes (thanks @nchursin)
+- Added console methods
+- Added a stop command
 - Import of workspace modules + a bugfix for importing from NodeJs API
 - Text editor optimizations for drawing results/console
 - Annoying bug where error/result didn't get removed when there was an empty document

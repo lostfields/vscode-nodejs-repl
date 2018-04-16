@@ -1,6 +1,13 @@
 # Changelog
 All changes done to Node.JS REPL will be kept here, according to [changelog format](http://keepachangelog.com/)
 
+## [0.4.9] - 2018-04-16
+### Added
+- Stop command
+### Changed
+- Console output for arrays
+- Console output for objects
+
 ## [0.4.8] - 2018-02-12
 ### Changed
 - Dispose the REPL extension by closing the active document
