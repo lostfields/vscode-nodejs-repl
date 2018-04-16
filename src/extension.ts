@@ -332,8 +332,7 @@ class NodeRepl extends EventEmitter {
                                     
                                     outputWindow.appendLine(`  ${match[1]}\n\tat line ${lineCount}`);
                                 }
-                                
-                                if( (match = /`\{(\d+)\}`(.*)/gi.exec(out)) != null) {
+                                else if( (match = /`\{(\d+)\}`(.*)/gi.exec(out)) != null) {
                                     let output = this.output.get( Number(match[1]) );
                                     if( output == null)
                                         this.output.set(Number(match[1]), output = { line: Number(match[1]), type: 'console', text: '', value: [] });
@@ -344,6 +343,9 @@ class NodeRepl extends EventEmitter {
                                     this.emit('output', output);
 
                                     outputWindow.appendLine(`  ${match[2]}`);
+                                }
+                                else {
+                                    outputWindow.appendLine(`  ${out}`);
                                 }
                                 
                                 break;
@@ -393,7 +395,7 @@ class NodeRepl extends EventEmitter {
             Object.defineProperty(repl.context, '_console', {
                 
                 value: function(line: number) {
-                    return {
+                    return Object.assign({}, repl.context.console, {
                         log: function(text) {
                             repl.context.console.log(`\`{${line}}\`${text}`);
                         }, 
@@ -402,12 +404,10 @@ class NodeRepl extends EventEmitter {
                         },
                         error: function(text) {
                             repl.context.console.log(`\`{${line}}\`${text}`);
-                        },
-                        Console: function() {
-                            return new repl.context.console.Consule(...arguments);
                         }
-                    }
+                    })
                 }
+                
             });
         
             code = this.rewriteImport(code);
