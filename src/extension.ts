@@ -347,7 +347,7 @@ class NodeRepl extends EventEmitter {
                                     
                                     outputWindow.appendLine(`  ${match[1]}\n\tat line ${lineCount}`);
                                 }
-                                else if( (match = /`\{(\d+)\}`(.*)/gi.exec(out)) != null) {
+                                else if( (match = /`\{(\d+)\}`([\s\S]*)/gi.exec(out)) != null) {
                                     let output = this.output.get( Number(match[1]) );
                                     if( output == null)
                                         this.output.set(Number(match[1]), output = { line: Number(match[1]), type: 'console', text: '', value: [] });
