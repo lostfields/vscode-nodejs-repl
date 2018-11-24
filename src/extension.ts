@@ -154,7 +154,7 @@ class ReplExtension {
         this.repl = new NodeRepl();
 
         this.changeActiveDisposable = window.onDidChangeActiveTextEditor(async (editor) => {
-            if(this.editor.document === editor.document) {
+            if(this.editor && this.editor.document === editor.document) {
                 this.interpret();
             }
         });
