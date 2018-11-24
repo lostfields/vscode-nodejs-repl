@@ -307,7 +307,10 @@ class NodeRepl extends EventEmitter {
         super();
 
         if(workspace && Array.isArray(workspace.workspaceFolders)) {
-            this.basePath = workspace.workspaceFolders[0].uri.fsPath;
+            let doc = window.activeTextEditor.document;
+            this.basePath = (doc.isUntitled)
+                ? workspace.workspaceFolders[0].uri.fsPath
+                : workspace.getWorkspaceFolder(Uri.file(doc.fileName)).uri.fsPath;
         }
     }
 
@@ -530,10 +533,13 @@ class NodeRepl extends EventEmitter {
                 }
             } 
             catch(ex) {
-                let path;
+                let doc = window.activeTextEditor.document;
+                let path = Path.join(this.basePath, 'node_modules', name);
 
-                if( Fs.existsSync(path = Path.join(this.basePath, 'node_modules', name)) == false)
-                    path = Path.normalize(Path.join(this.basePath, name));
+                if(Fs.existsSync(path) === false)
+                    path = (doc.isUntitled)
+                        ? Path.normalize(Path.join(this.basePath, name))
+                        : Path.join(Path.dirname(doc.fileName), name);
 
                 return `require('${path.replace(/\\/g, '\\\\')}')`;
             }
