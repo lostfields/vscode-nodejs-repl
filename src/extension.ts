@@ -414,14 +414,14 @@ class NodeRepl extends EventEmitter {
                 
                 value: function(line: number) {
                     return Object.assign({}, repl.context.console, {
-                        log: function(text) {
-                            repl.context.console.log(`\`{${line}}\`${text}`);
+                        log: function(text, ...args) {
+                            repl.context.console.log(`\`{${line}}\`${text}`, ...args);
                         }, 
-                        warn: function(text) {
-                            repl.context.console.log(`\`{${line}}\`${text}`);
+                        warn: function(text, ...args) {
+                            repl.context.console.log(`\`{${line}}\`${text}`, ...args);
                         },
-                        error: function(text) {
-                            repl.context.console.log(`\`{${line}}\`${text}`);
+                        error: function(text, ...args) {
+                            repl.context.console.log(`\`{${line}}\`${text}`, ...args);
                         }
                     })
                 }
