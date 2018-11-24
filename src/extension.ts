@@ -529,7 +529,7 @@ class NodeRepl extends EventEmitter {
         return code.replace(regex, (str, par, name) => {
             try {
                 if(require(name)) {
-                    return name;
+                    return str;
                 }
             } 
             catch(ex) {
