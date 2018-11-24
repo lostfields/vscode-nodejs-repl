@@ -151,8 +151,6 @@ class ReplExtension {
     public async init() {
         outputWindow.appendLine(`Initializing REPL extension`)
 
-        this.repl = new NodeRepl();
-
         this.changeActiveDisposable = window.onDidChangeActiveTextEditor(async (editor) => {
             if(this.editor && this.editor.document === editor.document) {
                 this.interpret();
@@ -311,6 +309,7 @@ class NodeRepl extends EventEmitter {
             this.basePath = (doc.isUntitled)
                 ? workspace.workspaceFolders[0].uri.fsPath
                 : workspace.getWorkspaceFolder(Uri.file(doc.fileName)).uri.fsPath;
+            outputWindow.appendLine(`Working at: ${this.basePath}`);
         }
     }
 
