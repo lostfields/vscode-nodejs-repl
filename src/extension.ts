@@ -23,6 +23,7 @@ import { EventEmitter } from 'events';
 import * as Repl from 'repl';
 import * as Path from 'path';
 import * as Fs from 'fs';
+import * as Util from 'util';
 import { Writable, Readable } from 'stream';
 
 let replExt: ReplExtension;
@@ -413,16 +414,14 @@ class NodeRepl extends EventEmitter {
             Object.defineProperty(repl.context, '_console', {
                 
                 value: function(line: number) {
+                    let _log = function (text, ...args) {
+                        repl.context.console.log(`\`{${line}}\`${typeof text === 'string' ? text : Util.inspect(text)}`, ...args);
+                    }
+
                     return Object.assign({}, repl.context.console, {
-                        log: function(text, ...args) {
-                            repl.context.console.log(`\`{${line}}\`${text}`, ...args);
-                        }, 
-                        warn: function(text, ...args) {
-                            repl.context.console.log(`\`{${line}}\`${text}`, ...args);
-                        },
-                        error: function(text, ...args) {
-                            repl.context.console.log(`\`{${line}}\`${text}`, ...args);
-                        }
+                        log: _log,
+                        warn: _log,
+                        error: _log
                     })
                 }
                 
