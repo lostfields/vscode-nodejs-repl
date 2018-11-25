@@ -150,7 +150,8 @@ class ReplExtension {
     }
 
     public async init() {
-        outputWindow.appendLine(`Initializing REPL extension in Node ${process.version}`)
+        outputWindow.appendLine(`Initializing REPL extension with Node ${process.version}`)
+        outputWindow.appendLine(`  Warning; Be careful with CRUD operations since the code is running multiple times in REPL.`)
 
         this.changeActiveDisposable = window.onDidChangeActiveTextEditor(async (editor) => {
             if(this.editor && this.editor.document === editor.document) {
@@ -177,8 +178,6 @@ class ReplExtension {
                     this.editor.setDecorations(this.resultDecorationType, Array.from(this.resultDecorators.values()).filter(d => {
                         return this.editor.selection.active.line != d.range.start.line;
                     }));
-
-                outputWindow.show(true);
 
                 if(this.interpretTimer)
                     clearTimeout(this.interpretTimer);
@@ -311,7 +310,7 @@ class NodeRepl extends EventEmitter {
                 ? workspace.workspaceFolders[0].uri.fsPath
                 : workspace.getWorkspaceFolder(Uri.file(doc.fileName)).uri.fsPath;
 
-            outputWindow.appendLine(`Working at: ${this.basePath}`);
+            outputWindow.appendLine(`[${new Date().toLocaleTimeString()}] working at: ${this.basePath}`);
         }
     }
 
