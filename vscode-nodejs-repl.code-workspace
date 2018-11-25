@@ -1,6 +1,7 @@
 {
 	"folders": [
 		{
+			"name": "nodejs-repl",
 			"path": "."
 		}
 	],
@@ -14,12 +15,12 @@
 					"request": "launch",
 					"runtimeExecutable": "${execPath}",
 					"args": [
-						"--extensionDevelopmentPath=${workspaceRoot}"
+						"--extensionDevelopmentPath=${workspaceFolder:nodejs-repl}"
 					],
 					"stopOnEntry": false,
 					"sourceMaps": true,
 					"outFiles": [
-						"${workspaceRoot}/out/**/*.js"
+						"${workspaceFolder:nodejs-repl}/out/**/*.js"
 					],
 					"preLaunchTask": "npm: watch"
 				},
@@ -29,13 +30,13 @@
 					"request": "launch",
 					"runtimeExecutable": "${execPath}",
 					"args": [
-						"--extensionDevelopmentPath=${workspaceRoot}",
-						"--extensionTestsPath=${workspaceRoot}/out/test"
+						"--extensionDevelopmentPath=${workspaceFolder:nodejs-repl}",
+						"--extensionTestsPath=${workspaceFolder:nodejs-repl}/out/test"
 					],
 					"stopOnEntry": false,
 					"sourceMaps": true,
 					"outFiles": [
-						"${workspaceRoot}/out/test/**/*.js"
+						"${workspaceFolder:nodejs-repl}/out/test/**/*.js"
 					],
 					"preLaunchTask": "npm: watch"
 				}
