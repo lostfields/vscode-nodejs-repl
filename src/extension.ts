@@ -23,6 +23,7 @@ import { EventEmitter } from 'events';
 import * as Repl from 'repl';
 import * as Path from 'path';
 import * as Fs from 'fs';
+import * as Util from 'util';
 import { Writable, Readable } from 'stream';
 
 let replExt: ReplExtension;
@@ -149,12 +150,10 @@ class ReplExtension {
     }
 
     public async init() {
-        outputWindow.appendLine(`Initializing REPL extension`)
-
-        this.repl = new NodeRepl();
+        outputWindow.appendLine(`Initializing REPL extension in Node ${process.version}`)
 
         this.changeActiveDisposable = window.onDidChangeActiveTextEditor(async (editor) => {
-            if(this.editor.document === editor.document) {
+            if(this.editor && this.editor.document === editor.document) {
                 this.interpret();
             }
         });
@@ -307,7 +306,12 @@ class NodeRepl extends EventEmitter {
         super();
 
         if(workspace && Array.isArray(workspace.workspaceFolders)) {
-            this.basePath = workspace.workspaceFolders[0].uri.fsPath;
+            let doc = window.activeTextEditor.document;
+            this.basePath = (doc.isUntitled)
+                ? workspace.workspaceFolders[0].uri.fsPath
+                : workspace.getWorkspaceFolder(Uri.file(doc.fileName)).uri.fsPath;
+
+            outputWindow.appendLine(`Working at: ${this.basePath}`);
         }
     }
 
@@ -410,16 +414,14 @@ class NodeRepl extends EventEmitter {
             Object.defineProperty(repl.context, '_console', {
                 
                 value: function(line: number) {
+                    let _log = function (text, ...args) {
+                        repl.context.console.log(`\`{${line}}\`${typeof text === 'string' ? text : Util.inspect(text)}`, ...args);
+                    }
+
                     return Object.assign({}, repl.context.console, {
-                        log: function(text) {
-                            repl.context.console.log(`\`{${line}}\`${text}`);
-                        }, 
-                        warn: function(text) {
-                            repl.context.console.log(`\`{${line}}\`${text}`);
-                        },
-                        error: function(text) {
-                            repl.context.console.log(`\`{${line}}\`${text}`);
-                        }
+                        log: _log,
+                        warn: _log,
+                        error: _log
                     })
                 }
                 
@@ -526,14 +528,17 @@ class NodeRepl extends EventEmitter {
         return code.replace(regex, (str, par, name) => {
             try {
                 if(require(name)) {
-                    return name;
+                    return str;
                 }
             } 
             catch(ex) {
-                let path;
+                let doc = window.activeTextEditor.document;
+                let path = Path.join(this.basePath, 'node_modules', name);
 
-                if( Fs.existsSync(path = Path.join(this.basePath, 'node_modules', name)) == false)
-                    path = Path.normalize(Path.join(this.basePath, name));
+                if(Fs.existsSync(path) === false)
+                    path = (doc.isUntitled)
+                        ? Path.normalize(Path.join(this.basePath, name))
+                        : Path.join(Path.dirname(doc.fileName), name);
 
                 return `require('${path.replace(/\\/g, '\\\\')}')`;
             }
