@@ -526,22 +526,15 @@ class NodeRepl extends EventEmitter {
             match: RegExpExecArray;
 
         return code.replace(regex, (str, par, name) => {
-            try {
-                if(require(name)) {
-                    return str;
-                }
-            } 
-            catch(ex) {
-                let doc = window.activeTextEditor.document;
-                let path = Path.join(this.basePath, 'node_modules', name);
+            let doc = window.activeTextEditor.document;
+            let path = Path.join(this.basePath, 'node_modules', name);
 
-                if(Fs.existsSync(path) === false)
-                    path = (doc.isUntitled)
-                        ? Path.normalize(Path.join(this.basePath, name))
-                        : Path.join(Path.dirname(doc.fileName), name);
+            if(Fs.existsSync(path) === false)
+                path = (doc.isUntitled)
+                    ? Path.normalize(Path.join(this.basePath, name))
+                    : Path.join(Path.dirname(doc.fileName), name);
 
-                return `require('${path.replace(/\\/g, '\\\\')}')`;
-            }
+            return `require('${path.replace(/\\/g, '\\\\')}')`;
         });
     }
 
