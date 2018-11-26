@@ -529,9 +529,11 @@ class NodeRepl extends EventEmitter {
             let path = Path.join(this.basePath, 'node_modules', name);
 
             if(Fs.existsSync(path) === false)
-                path = (doc.isUntitled)
-                    ? Path.normalize(Path.join(this.basePath, name))
-                    : Path.join(Path.dirname(doc.fileName), name);
+                path = (name.indexOf('/') === -1)
+                    ? name
+                    : (doc.isUntitled)
+                        ? Path.join(this.basePath, name)
+                        : Path.join(Path.dirname(doc.fileName), name);
 
             return `require('${path.replace(/\\/g, '\\\\')}')`;
         });
