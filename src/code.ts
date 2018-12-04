@@ -8,10 +8,9 @@ export function rewriteImportToRequire(code: string): string {
     return code.replace(importStatement, (str, wildcard: string, module: string, modules: string, from: string) => {
         let rewrite = '';
 
-        // 导入所有
         if (module)
             rewrite += `${rewrite === '' ? '' : ', '}default: ${module} `;
-        // 解构导入
+
         if (modules)
             rewrite += `${rewrite === '' ? '' : ', '}${modules
                 .split(',')
@@ -31,10 +30,10 @@ export function rewriteModulePathInRequire(code: string, basePath: string, fileP
     return code.replace(requireStatement, (str, par, name) => {
         let path = Path.join(basePath, 'node_modules', name);
 
-        if (Fs.existsSync(path) === false) // 不是第三方模块
-            path = (name.indexOf('/') === -1) // 是否标准模块
+        if (Fs.existsSync(path) === false)
+            path = (name.indexOf('/') === -1)
                 ? name
-                : (filePath) // 文件路径是否存在
+                : (filePath)
                     ? Path.join(Path.dirname(filePath), name)
                     : Path.join(basePath, name);
 

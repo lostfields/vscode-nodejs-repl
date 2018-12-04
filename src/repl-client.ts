@@ -15,7 +15,7 @@ import {
     rewriteChainCallInOneLine
 } from "./code";
 
-import Decorator from "./Decorator";
+import Decorator from "./decorator";
 import { spawn, ChildProcess } from "child_process";
 
 

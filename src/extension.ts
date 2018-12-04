@@ -12,7 +12,7 @@ import {
     Disposable,
 } from 'vscode';
 
-import ReplClient from './ReplClient';
+import ReplClient from './repl-client';
 
 
 let outputWindow = window.createOutputChannel("NodeJs REPL");
@@ -82,7 +82,7 @@ export function deactivate() {
     client.dispose();
     editor = null;
     doc = null;
-    
+
     for (let cmd of registeredCommands)
         cmd.dispose();
 }
