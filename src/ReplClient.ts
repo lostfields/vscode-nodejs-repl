@@ -38,8 +38,10 @@ export default class ReplClient {
         this.decorator = new Decorator(outputChannel);
 
         this.changeActiveDisposable = window.onDidChangeActiveTextEditor(async (editor) => {
-            if (this.editor === editor)
+            if (this.editor && this.editor.document === editor.document) {
+                this.init(editor, editor.document);
                 this.interpret();
+            }
         });
 
         this.closeTextDocumentDisposable = workspace.onDidCloseTextDocument(async (document) => {
@@ -121,8 +123,6 @@ export default class ReplClient {
     close() {
         if (this.outputChannel)
             this.outputChannel.appendLine(`Disposing REPL server.`);
-
-        this.editor = null;
 
         this.repl.send({ operation: 'exit' });
         this.repl = null;

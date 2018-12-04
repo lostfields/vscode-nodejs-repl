@@ -23,6 +23,7 @@ const colorMap = {
     'Console': '#457abb',
     'Error': 'red',
 }
+// TODO: if Node's Version of VSCode >=9.9, use option `compact`
 const inspectOptions = { maxArrayLength: null, depth: null };
 
 type Data = { line: number, type: 'Expression' | 'Terminal', value: any };
