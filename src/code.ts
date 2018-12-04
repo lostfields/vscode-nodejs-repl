@@ -42,6 +42,7 @@ export function rewriteModulePathInRequire(code: string, basePath: string, fileP
     });
 }
 
+
 const linBreak = /\r?\n/;
 const consoleLogCall = /console\s*\.(log|debug|error)\(/g;
 
@@ -55,6 +56,7 @@ export function rewriteConsoleToAppendLineNumber(code: string): string {
 
     return out.join('\n');
 }
+
 
 const lineBreakInChainCall = /([\n\s]+)\./gi;
 

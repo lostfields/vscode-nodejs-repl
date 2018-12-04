@@ -9,6 +9,8 @@ import {
     window,
 } from "vscode";
 
+import * as Util from 'util';
+
 
 // create a decorator type that we use to decorate small numbers
 const resultDecorationType = window.createTextEditorDecorationType({
@@ -17,10 +19,14 @@ const resultDecorationType = window.createTextEditorDecorationType({
     dark: {},
 });
 const colorMap = {
-    Result: 'green',
-    Error: 'red',
-    Console: '#457abb',
+    'Value of Expression': 'green',
+    'Console': '#457abb',
+    'Error': 'red',
 }
+const inspectOptions = { maxArrayLength: null, depth: null };
+
+type Data = { line: number, type: 'Expression' | 'Terminal', value: any };
+type Result = { line: number, type: 'Value of Expression' | 'Console' | 'Error', text: string, value: any };
 
 export default class Decorator {
     private editor: TextEditor;
@@ -37,11 +43,13 @@ export default class Decorator {
         this.decorators = [];
     }
 
-    async update(result: any) {
+    async update(data: Data) {
 
-        result = (result.type === 'Expression')
-            ? await this.formatExpressionValue(result)
-            : this.formatTerminalOutput(result);
+        let result = (data.type === 'Expression')
+            ? await this.formatExpressionValue(data)
+            : this.formatTerminalOutput(data);
+
+        if (!result) return;
 
         let decorator: DecorationOptions;
 
@@ -63,60 +71,60 @@ export default class Decorator {
 
         decorator.hoverMessage = new MarkdownString(result.type);
         decorator.hoverMessage.appendCodeblock(
-            result.type == 'Console' ? result.value.join('\n') : result.value || result.text,
+            result.type === 'Console' ? result.value.join('\n') : result.value || result.text,
             'javascript'
         );
 
         this.decorateAll();
     }
-    private async formatExpressionValue(data: any): Promise<{ line?: number, type: 'Result' | 'Error', text: string, value: any }> {
+    private async formatExpressionValue(data: Data): Promise<Result> {
         let result = data.value;
         switch (typeof result) {
             case 'undefined':
-                break;
+                return null;
 
             case 'object':
                 if (result.constructor && result.constructor.name === 'Promise' && result.then) {
                     try {
-                        return this.formatExpressionValue(Object.assign(data, { value: await Promise.resolve(result) }));
-                    } catch (ex) {
+                        let value = await Promise.resolve(result);
+                        return value ? this.formatExpressionValue(Object.assign(data, { value })) : null;
+                    } catch (error) {
                         return {
                             line: data.line,
                             type: 'Error',
-                            text: `${ex.name}: ${ex.message}`,
-                            value: ex,
+                            text: `${error.name}: ${error.message}`,
+                            value: error,
                         }
                     }
                 }
 
+                let string = Util.inspect(result, inspectOptions);
                 return {
                     line: data.line,
-                    type: 'Result',
-                    text: (Array.isArray(result))
-                        ? JSON.stringify(result)
-                        : JSON.stringify(result, null, '\t').replace(/\n/g, ' '),
-                    value: result,
+                    type: 'Value of Expression',
+                    text: string,
+                    value: string,
                 }
 
             default:
                 return {
                     line: data.line,
-                    type: 'Result',
+                    type: 'Value of Expression',
                     text: result.toString().replace(/\r?\n/g, ' '),
                     value: result,
                 }
         }
     }
-    private formatTerminalOutput(data: any): { line?: number, type: 'Console' | 'Error', text: string, value: any } {
-        let lineCount = data.line;
-        let out = data.text;
+    private formatTerminalOutput(data: Data): Result {
+        let out = data.value as string;
         let match: RegExpExecArray;
 
-        if ((match = /(\w+:\s.*)\n\s*at\s/gi.exec(out)) != null) {
-            this.outputChannel.appendLine(`  ${match[1]}\n\tat line ${lineCount}`);
-            return { line: lineCount, type: 'Error', text: match[1], value: match[1] }
+        if ((match = /^(Error:\s.*)(?:\n\s*at\s)?/g.exec(out)) != null) {
+            this.outputChannel.appendLine(`  ${match[1]}\n\tat line ${data.line}`);
+
+            return { line: data.line, type: 'Error', text: match[1], value: match[1] };
         }
-        else if ((match = /`\{(\d+)\}`([\s\S]*)/gi.exec(out)) != null) {
+        else if ((match = /^`\{(\d+)\}`([\s\S]*)$/g.exec(out)) != null) {
             let line = +match[1];
             let msg = match[2] || '';
 

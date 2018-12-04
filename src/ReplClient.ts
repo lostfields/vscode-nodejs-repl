@@ -16,7 +16,7 @@ import {
 } from "./code";
 
 import Decorator from "./Decorator";
-import REPLServer from "./ReplServer";
+import { spawn, ChildProcess } from "child_process";
 
 
 export default class ReplClient {
@@ -29,7 +29,7 @@ export default class ReplClient {
     private basePath: string;
     private filePath: string;
 
-    private repl: REPLServer;
+    private repl: ChildProcess;
 
     private editingTimer: NodeJS.Timer = null;
     private afterEditTimer: NodeJS.Timer = null;
@@ -59,12 +59,12 @@ export default class ReplClient {
                     let currentLine = this.editor.selection.active.line;
                     this.decorator.decorateExcept(currentLine);
                 }
-                
+
                 if (this.afterEditTimer) clearTimeout(this.afterEditTimer);
                 if (this.editingTimer) clearTimeout(this.editingTimer);
 
                 if (text.lastIndexOf(';') >= 0 || text.lastIndexOf('\n') >= 0 || (text === '' && change.range.isSingleLine === false))
-                    this.editingTimer = setTimeout(async () => await this.interpret(), 300);
+                    this.editingTimer = setTimeout(async () => await this.interpret(), 600);
                 else
                     this.afterEditTimer = setTimeout(async () => await this.interpret(), 1500);
             }
@@ -75,7 +75,7 @@ export default class ReplClient {
     }
 
     init(editor: TextEditor, doc: TextDocument) {
-        this.outputChannel.appendLine(`Initializing REPL extension with Node ${process.version}`);
+        this.outputChannel.appendLine(`Initializing REPL extension.`);
         this.outputChannel.appendLine(`  Warning; Be careful with CRUD operations since the code is running multiple times in REPL.`);
 
         this.editor = editor;
@@ -96,7 +96,14 @@ export default class ReplClient {
         try {
             this.decorator.init(this.editor);
 
+            this.repl = spawn('node', [`${__dirname}/replServer.js`], { cwd: this.basePath, stdio: ['ignore', 'ignore', 'ignore', 'ipc'] })
+                .on('message', async result => await this.decorator.update(result))
+                .on('error', err => this.outputChannel.appendLine(`[Repl Server] ${err.message}`));
+
             let code = this.editor.document.getText();
+
+            this.outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] starting to interpret ${code.length} bytes of code`);
+
             // TODO: typescript REPL
             // code = `require("${Path.join(this.basePath, "node_modules/ts-node").replace(/\\/g, '\\\\')}").register({});\n${code}`;
             code = rewriteImportToRequire(code);
@@ -104,11 +111,7 @@ export default class ReplClient {
             code = rewriteConsoleToAppendLineNumber(code);
             code = rewriteChainCallInOneLine(code);
 
-            this.repl = new REPLServer(this.outputChannel)
-                .on('output', async result => await this.decorator.update(result));
-
-            this.outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] starting to interpret ${code.length} bytes of code`);
-            this.repl.interpret(code);
+            this.repl.send({ code });
         }
         catch (ex) {
             this.outputChannel.appendLine(ex);
@@ -120,6 +123,8 @@ export default class ReplClient {
             this.outputChannel.appendLine(`Disposing REPL server.`);
 
         this.editor = null;
+
+        this.repl.send({ operation: 'exit' });
         this.repl = null;
     }
 
@@ -132,6 +137,8 @@ export default class ReplClient {
         this.closeTextDocumentDisposable.dispose();
         this.changeEventDisposable.dispose();
         this.editor = null;
+
+        this.repl.send({ operation: 'exit' });
         this.repl = null;
     }
 }
