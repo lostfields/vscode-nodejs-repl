@@ -18,6 +18,9 @@ import {
 import Decorator from "./decorator";
 import { spawn, ChildProcess } from "child_process";
 
+const serverArguments = [`${__dirname}/repl-server.js`];
+
+const stdioOptions = ['ignore', 'ignore', 'ignore', 'ipc'];
 
 export default class ReplClient {
     private changeEventDisposable: Disposable;
@@ -96,9 +99,11 @@ export default class ReplClient {
 
     async interpret() {
         try {
+            if (!this.isClosed) this.close();
+
             this.decorator.init(this.editor);
 
-            this.repl = spawn('node', [`${__dirname}/replServer.js`], { cwd: this.basePath, stdio: ['ignore', 'ignore', 'ignore', 'ipc'] })
+            this.repl = spawn('node', serverArguments, { cwd: this.basePath, stdio: stdioOptions })
                 .on('message', async result => await this.decorator.update(result))
                 .on('error', err => this.outputChannel.appendLine(`[Repl Server] ${err.message}`));
 

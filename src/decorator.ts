@@ -18,7 +18,7 @@ const resultDecorationType = window.createTextEditorDecorationType({
     light: {},
     dark: {},
 });
-const colorMap = {
+const colorOfType = {
     'Value of Expression': 'green',
     'Console': '#457abb',
     'Error': 'red',
@@ -67,7 +67,7 @@ export default class Decorator {
             this.decorators.push(decorator);
         }
 
-        decorator.renderOptions.before.color = colorMap[result.type];
+        decorator.renderOptions.before.color = colorOfType[result.type];
         decorator.renderOptions.before.contentText = ` ${result.text}`;
 
         decorator.hoverMessage = new MarkdownString(result.type);
@@ -120,7 +120,7 @@ export default class Decorator {
         let out = data.value as string;
         let match: RegExpExecArray;
 
-        if ((match = /^(Error:\s.*)(?:\n\s*at\s)?/g.exec(out)) != null) {
+        if ((match = /(\w*Error:\s.*)(?:\n\s*at\s)?/g.exec(out)) != null) {
             this.outputChannel.appendLine(`  ${match[1]}\n\tat line ${data.line}`);
 
             return { line: data.line, type: 'Error', text: match[1], value: match[1] };
