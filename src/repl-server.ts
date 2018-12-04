@@ -30,7 +30,7 @@ const server = Repl.start({
 
 
 const originEval = server.eval; // keep a backup of original eval
-const lineNumber = /\/\*`(\d+)`\*\//gi;
+const lineNumber = /\/\*`(\d+)`\*\//g;
 
 // nice place to read the result in sequence and inject it in the code
 server.eval = (cmd, context, filename, callback) => {

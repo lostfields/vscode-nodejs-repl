@@ -2,24 +2,19 @@ import * as Path from 'path';
 import * as Fs from 'fs';
 
 
-const importStatement = /import\s*(?:(\*\s+as\s)?([\w-_]+),?)?\s*(?:\{([^\}]+)\})?\s+from\s+["']([^"']+)["']/gi;
+const importStatement = /import\s+(?:(\*\s+as\s)?([\w-_]+),?)?\s*(?:\{([^\}]+)\})?\s+from\s+["']([^"']+)["']/gi;
 
 export function rewriteImportToRequire(code: string): string {
     return code.replace(importStatement, (str, wildcard: string, module: string, modules: string, from: string) => {
         let rewrite = '';
 
         if (module)
-            rewrite += `${rewrite === '' ? '' : ', '}default: ${module} `;
+            rewrite = `default: ${module}`;
 
         if (modules)
-            rewrite += `${rewrite === '' ? '' : ', '}${modules
-                .split(',')
-                .map(r => r.replace(/\s*([\w-_]+)(?:\s+as\s+([\w-_]))?\s*/gi, (str, moduleName: string, moduleNewName: string) => {
-                    return `${moduleNewName ? `${moduleNewName.trim()}: ` : ``}${moduleName.trim()}`;
-                }))
-                .join(', ')}`;
+            rewrite += (rewrite && ', ') + modules.replace(/\sas\s/g, ': ');
 
-        return `const ${wildcard ? module : `{ ${rewrite} }`} = require('${from}')`;
+        return `const ${wildcard ? module : `{ ${rewrite} }`} = require('${from}');`;
     });
 }
 
@@ -42,14 +37,14 @@ export function rewriteModulePathInRequire(code: string, basePath: string, fileP
 }
 
 
-const linBreak = /\r?\n/;
+const lineBreak = /\r?\n/;
 const consoleLogCall = /console\s*\.(log|debug|error)\(/g;
 
 export function rewriteConsoleToAppendLineNumber(code: string): string {
     let num = 0,
         out = [];
 
-    for (let line of code.split(linBreak)) {
+    for (let line of code.split(lineBreak)) {
         out.push(line.replace(consoleLogCall, `global['\`console\`'].$1(${num++}, `));
     }
 
@@ -60,5 +55,5 @@ export function rewriteConsoleToAppendLineNumber(code: string): string {
 const lineBreakInChainCall = /([\n\s]+)\./gi;
 
 export function rewriteChainCallInOneLine(code: string): string {
-    return code.replace(lineBreakInChainCall, (str, whitespace) => `/*\`${whitespace.split(linBreak).length - 1}\`*/.`);
+    return code.replace(lineBreakInChainCall, (str, whitespace) => `/*\`${whitespace.split(lineBreak).length - 1}\`*/.`);
 }
