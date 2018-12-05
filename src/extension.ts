@@ -566,7 +566,7 @@ class NodeRepl extends EventEmitter {
     }
 
     private rewriteRequire(code: string): string {
-        let regex = /require\s*\(\s*(['"])([A-Z0-9_~\\\/\.]+)\s*\1\)/gi,
+        let regex = /require\s*\(\s*(['"])([A-Z0-9_~\-\\\/\.]+)\s*\1\)/gi,
             match: RegExpExecArray;
 
         return code.replace(regex, (str, par, name) => {
