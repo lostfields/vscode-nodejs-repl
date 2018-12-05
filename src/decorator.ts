@@ -56,7 +56,7 @@ export default class Decorator {
         let match: RegExpExecArray;
 
         if ((match = /((\w*Error(?:\s\[[^\]]+\])?:\s.*)(?:\n\s*at\s[\s\S]+)?)$/.exec(value)) != null) {
-            return { line, type: 'Error', text: match[1], value: match[2] };
+            return { line, type: 'Error', text: match[2], value: match[1] };
         }
         else if ((match = /^`\{(\d+)\}`([\s\S]*)$/.exec(value)) != null) {
             let value = match[2] || '';
