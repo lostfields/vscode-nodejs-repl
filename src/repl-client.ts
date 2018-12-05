@@ -138,12 +138,11 @@ export default class ReplClient {
     }
 
     dispose() {
+        if (!this.isClosed) this.close();
+
         this.changeActiveDisposable.dispose();
         this.closeTextDocumentDisposable.dispose();
         this.changeEventDisposable.dispose();
         this.editor = null;
-
-        this.repl.send({ operation: 'exit' });
-        this.repl = null;
     }
 }

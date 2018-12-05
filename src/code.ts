@@ -38,14 +38,15 @@ export function rewriteModulePathInRequire(code: string, basePath: string, fileP
 
 
 const lineBreak = /\r?\n/;
-const consoleLogCall = /console\s*\.(log|debug|error)\(/g;
+const consoleLogCall = /console\s*\.(debug|error|info|log|warn)\(/g;
 
 export function rewriteConsoleToAppendLineNumber(code: string): string {
     let num = 0,
         out = [];
 
     for (let line of code.split(lineBreak)) {
-        out.push(line.replace(consoleLogCall, `global['\`console\`'].$1(${num++}, `));
+        out.push(line.replace(consoleLogCall, (str, method) => `global['\`console\`'].${method}(${num}, `));
+        num++;
     }
 
     return out.join('\n');

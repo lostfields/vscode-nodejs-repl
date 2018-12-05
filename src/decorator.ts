@@ -9,8 +9,6 @@ import {
     window,
 } from "vscode";
 
-import * as Util from 'util';
-
 
 // create a decorator type that we use to decorate small numbers
 const resultDecorationType = window.createTextEditorDecorationType({
@@ -23,10 +21,7 @@ const colorOfType = {
     'Console': '#457abb',
     'Error': 'red',
 }
-// TODO: if Node's Version of VSCode >=9.9, use default option
-const inspectOptions: NodeJS.InspectOptions = { depth: 20 };
-
-type Data = { line: number, type: 'Expression' | 'Terminal', value: any };
+type Data = { line: number, value: string };
 type Result = { line: number, type: 'Value of Expression' | 'Console' | 'Error', text: string, value: string };
 
 export default class Decorator {
@@ -45,19 +40,48 @@ export default class Decorator {
     }
 
     async update(data: Data) {
+        if (!data) return;
 
-        let result = (data.type === 'Expression')
-            ? await this.formatExpressionValue(data)
-            : this.formatTerminalOutput(data);
+        let result = this.format(data);
 
-        if (!result) return;
+        this.outputChannel.appendLine(`  ${result.value}`);
 
+        if (result.type === 'Console') {
+            result = this.mergeConsoleOutput(result);
+        }
+        this.updateWith(result);
+        this.decorateAll();
+    }
+    private format({ line, value }: Data): Result {
+        let match: RegExpExecArray;
+
+        if ((match = /((\w*Error(?:\s\[[^\]]+\])?:\s.*)(?:\n\s*at\s[\s\S]+)?)$/.exec(value)) != null) {
+            return { line, type: 'Error', text: match[1], value: match[2] };
+        }
+        else if ((match = /^`\{(\d+)\}`([\s\S]*)$/.exec(value)) != null) {
+            let value = match[2] || '';
+            return { line: +match[1], type: 'Console', text: value.replace(/\r?\n/g, ' '), value };
+        }
+        else {
+            return { line, type: 'Value of Expression', text: value.replace(/\r?\n/g, ' '), value };
+        }
+    }
+    private mergeConsoleOutput({ line, text, value }: Result) {
+        let output = this.lineToOutput.get(line);
+        if (output == null) {
+            this.lineToOutput.set(line, output = { line, type: 'Console', text: '', value: '' });
+        }
+
+        output.text += (output.text && ', ') + text;
+        output.value += (output.value && '\n') + value;
+
+        return output;
+    }
+    private updateWith({ line, type, text, value }: Result) {
         let decorator: DecorationOptions;
 
-        if ((decorator = this.lineToDecorator.get(result.line)) == null) {
-            let line = result.line,
-                length = this.editor.document.getText(new Range(new Position(line, 0), new Position(line, 37768))).length + 1,
-                pos = new Position(line, length);
+        if ((decorator = this.lineToDecorator.get(line)) == null) {
+            let pos = new Position(line, Number.MAX_SAFE_INTEGER);
 
             decorator = {
                 renderOptions: { before: { margin: '0 0 0 1em' } },
@@ -67,79 +91,11 @@ export default class Decorator {
             this.decorators.push(decorator);
         }
 
-        decorator.renderOptions.before.color = colorOfType[result.type];
-        decorator.renderOptions.before.contentText = ` ${result.text}`;
+        decorator.renderOptions.before.color = colorOfType[type];
+        decorator.renderOptions.before.contentText = ` ${text}`;
 
-        decorator.hoverMessage = new MarkdownString(result.type);
-        decorator.hoverMessage.appendCodeblock(result.value, result.type === 'Error' ? 'text' : 'javascript');
-
-        this.decorateAll();
-    }
-    private async formatExpressionValue(data: Data): Promise<Result> {
-        let result = data.value;
-        switch (typeof result) {
-            case 'undefined':
-                return null;
-
-            case 'object':
-                if (result.constructor && result.constructor.name === 'Promise' && result.then) {
-                    try {
-                        data.value = await (<Promise<any>>result);
-                        return data.value ? this.formatExpressionValue(data) : null;
-                    } catch (error) {
-                        return {
-                            line: data.line,
-                            type: 'Error',
-                            text: `${error.name}: ${error.message}`,
-                            value: error.stack,
-                        }
-                    }
-                }
-
-                let string = Util.inspect(result, inspectOptions);
-                return {
-                    line: data.line,
-                    type: 'Value of Expression',
-                    text: string.replace(/\n/g, ' '),
-                    value: string,
-                }
-
-            default:
-                return {
-                    line: data.line,
-                    type: 'Value of Expression',
-                    text: result.toString().replace(/\r?\n/g, ' '),
-                    value: result,
-                }
-        }
-    }
-    private formatTerminalOutput(data: Data): Result {
-        let out = data.value as string;
-        let match: RegExpExecArray;
-
-        if ((match = /^(\w*Error(?: \[[^\]]+\])?:\s.*)(?:\n\s*at\s)?/.exec(out)) != null) {
-            this.outputChannel.appendLine(`  ${out}`);
-
-            return { line: data.line, type: 'Error', text: match[1], value: out };
-        }
-        else if ((match = /^`\{(\d+)\}`([\s\S]*)$/.exec(out)) != null) {
-            let line = +match[1];
-            let msg = match[2] || '';
-
-            let output = this.lineToOutput.get(line);
-            if (output == null) {
-                this.lineToOutput.set(line, output = { line, type: 'Console', text: '', value: '' });
-            }
-
-            output.text += (output.text && ', ') + msg.replace(/\r?\n/g, ' ');
-            output.value += (output.value && '\n') + msg;
-
-            this.outputChannel.appendLine(`  ${msg}`);
-            return output;
-        }
-        else {
-            this.outputChannel.appendLine(`  ${out}`);
-        }
+        decorator.hoverMessage = new MarkdownString(type)
+            .appendCodeblock(value, type === 'Error' ? 'text' : 'javascript');
     }
 
     decorateAll() {
