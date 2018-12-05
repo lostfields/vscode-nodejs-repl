@@ -234,7 +234,7 @@ class ReplExtension {
                     
                     decorator.hoverMessage = new MarkdownString(result.type.slice(0, 1).toUpperCase() + result.type.slice(1));
                     decorator.hoverMessage.appendCodeblock(
-                        result.type == 'console' ? result.value.join('\n') : result.value || result.text,
+                        result.value || result.text,
                         "javascript"
                     );
                     
@@ -412,9 +412,9 @@ class NodeRepl extends EventEmitter {
 
             Object.defineProperty(repl.context, '_console', {
                 
-                value: function(line: number) {
-                    let _log = function (text, ...args) {
-                        repl.context.console.log(`\`{${line}}\`${typeof text === 'string' ? text : Util.inspect(text)}`, ...args);
+                value: (line: number) => {
+                    let _log = (text, ...args) => {
+                        repl.context.console.log(`\`{${line}}\`${(this.serialize(text) || '').replace(/\r\n|\n/g, ' ').replace(/\s{2}/g, '')}`, ...args);
                     }
 
                     return Object.assign({}, repl.context.console, {
@@ -472,19 +472,12 @@ class NodeRepl extends EventEmitter {
                     }
                 }
 
-                let text;
-
-                if(Array.isArray(result)) {
-                    text = JSON.stringify(result);
-                } 
-                else {
-                    text = JSON.stringify(result, null, "\t").replace(/\n/g, " ");
-                }
+                let text = this.serialize(result)
 
                 return {
                     type: 'result',
-                    text: text,
-                    value: result
+                    text: text.replace(/\r\n|\n/g, ' ').replace(/\s{2}/g, ''),
+                    value: text
                 }
 
             default:
@@ -494,7 +487,59 @@ class NodeRepl extends EventEmitter {
                     value: result
                 }                
         }
+    }
 
+    private serialize(value: any, indent: number = 0): string {
+        const injectSpaces = (indent, spaces: number) => {
+            let ret = ''
+
+            if(indent >= 0) {
+                for(let i = 0; i < (indent + spaces); i++)
+                    ret += ' '
+            }
+
+            return ret
+        }
+
+        if(value === null)
+            return null
+
+        try {
+            switch(typeof value) {
+                case 'string':
+                    return `"${value.toString()}"`
+
+                case 'number':
+                case 'boolean':
+                    return value.toString()
+                
+                case 'undefined':
+                    return 'undefined'
+
+                case 'function':
+                    return `[Function: ${value.name}]`
+
+                case 'object':
+                    if(value == null)
+                        return 'null'
+
+                    if(Array.isArray(value))
+                        return `[\n${injectSpaces(indent, 2)}${Array.from(value).map(value => this.serialize(value, indent > -1 ? indent + 2 : indent)).join(`,\n${injectSpaces(indent, 2)}`)}\n${injectSpaces(indent, 0)}]`
+
+                    let ret = `{\n`
+                    for(let key of Object.keys(value))
+                        ret += `${injectSpaces(indent, 4)}${key}: ${this.serialize(value[key], indent > -1 ? indent + 4 : indent)},\n`
+                    ret += `${injectSpaces(indent, 0)}}`
+                
+                    return ret
+
+                default:
+                    return value.toString()
+            }
+        }
+        catch(ex) {
+            return null
+        }
     }
 
     private rewriteImport(code: string): string {
