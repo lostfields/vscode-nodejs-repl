@@ -1,0 +1,14 @@
+{
+    "info": {
+        "initializing": "初始化 REPL 服务端中……",
+        "cwd": "[%s] 工作目录为：%s",
+        "starting": "[%s] 开始解释长度为 %d 字节的代码：",
+        "disposing": "销毁 REPL 服务端中……"
+    },
+    "warn": {
+        "CRUD": "  警告: 注意对文件、数据库等等的增删查改操作，因为代码会在 REPL 中执行多次。"
+    },
+    "error": {
+        "notJavascript": "[Node.js REPL] 选中的文档不是 Javascript 文件，不能在此执行 REPL。"
+    }
+}

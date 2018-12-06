@@ -1,0 +1,5 @@
+{
+    "command.extension.nodejsRepl": "Node.js REPL: 在新建无标题文件运行交互式解释器",
+    "command.extension.nodejsReplCurrent": "Node.js REPL: 在当前编辑器运行交互式解释器",
+    "command.extension.nodejsReplClose": "Node.js REPL: 停止交互式解释器"
+}

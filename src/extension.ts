@@ -3,6 +3,7 @@
 // Import the module and reference it with the alias vscode in your code below
 import {
     commands,
+    env,
     ExtensionContext,
     TextDocument,
     TextEditor,
@@ -13,8 +14,10 @@ import {
 } from 'vscode';
 
 import ReplClient from './repl-client';
+import i18n from './i18n';
 
 
+const i18nTexts = i18n(env.language);
 let outputWindow = window.createOutputChannel("NodeJs REPL");
 let registeredCommands: Disposable[];
 let client = new ReplClient(outputWindow);
@@ -47,7 +50,7 @@ export function activate(context: ExtensionContext) {
                     editor = await window.showTextDocument(doc, ViewColumn.Active);
 
                 } else {
-                    window.showErrorMessage('[Node.js REPL] Selected document is not Javascript, unable to start REPL here.');
+                    window.showErrorMessage(i18nTexts.error.notJavascript);
                     return;
                 }
 
@@ -70,8 +73,7 @@ export function activate(context: ExtensionContext) {
         }),
     ];
 
-    for (let cmd of registeredCommands)
-        context.subscriptions.push(cmd);
+    context.subscriptions.push(...registeredCommands);
 }
 
 /**

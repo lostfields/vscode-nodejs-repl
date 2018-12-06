@@ -1,0 +1,14 @@
+{
+    "info": {
+        "initializing": "Initializing REPL extension...",
+        "cwd": "[%s] working at：%s",
+        "starting": "[%s] starting to interpret %d bytes of code:",
+        "disposing": "Disposing REPL server..."
+    },
+    "warn": {
+        "CRUD": "  Warning: Be careful with CRUD operations since the code is running multiple times in REPL."
+    },
+    "error": {
+        "notJavascript": "[Node.js REPL] Selected document is not Javascript, unable to start REPL here."
+    }
+}

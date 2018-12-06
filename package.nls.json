@@ -1,0 +1,5 @@
+{
+    "command.extension.nodejsRepl": "Node.js REPL: Start REPL at New Untitled File",
+    "command.extension.nodejsReplCurrent": "Node.js REPL: Start REPL at Current File",
+    "command.extension.nodejsReplClose": "Node.js REPL: Stop REPL"
+}

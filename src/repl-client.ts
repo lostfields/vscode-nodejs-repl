@@ -1,5 +1,6 @@
 import {
     Disposable,
+    env,
     OutputChannel,
     TextEditor,
     TextDocument,
@@ -17,6 +18,10 @@ import {
 
 import Decorator from "./decorator";
 import { spawn, ChildProcess } from "child_process";
+import { format } from 'util';
+import i18n from './i18n';
+
+const i18nTexts = i18n(env.language);
 
 const serverArguments = [`${__dirname}/repl-server.js`];
 
@@ -80,8 +85,8 @@ export default class ReplClient {
     }
 
     init(editor: TextEditor, doc: TextDocument) {
-        this.outputChannel.appendLine(`Initializing REPL extension.`);
-        this.outputChannel.appendLine(`  Warning; Be careful with CRUD operations since the code is running multiple times in REPL.`);
+        this.outputChannel.appendLine(i18nTexts.info.initializing);
+        this.outputChannel.appendLine(i18nTexts.warn.CRUD);
 
         this.editor = editor;
 
@@ -93,7 +98,7 @@ export default class ReplClient {
 
             this.filePath = doc.isUntitled ? '' : doc.fileName;
 
-            this.outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] working at: ${this.basePath}`);
+            this.outputChannel.appendLine(format(i18nTexts.info.cwd, new Date().toLocaleTimeString(), this.basePath));
         }
     }
 
@@ -105,11 +110,11 @@ export default class ReplClient {
 
             this.repl = spawn('node', serverArguments, { cwd: this.basePath, stdio: stdioOptions })
                 .on('message', async result => await this.decorator.update(result))
-                .on('error', err => this.outputChannel.appendLine(`[Repl Server] ${err.message}`));
+                .on('error', err => this.outputChannel.appendLine(`[${new Date().toLocaleTimeString()}][REPL Server] ${err.message}`));
 
             let code = this.editor.document.getText();
 
-            this.outputChannel.appendLine(`[${new Date().toLocaleTimeString()}] starting to interpret ${code.length} bytes of code`);
+            this.outputChannel.appendLine(format(i18nTexts.info.starting, new Date().toLocaleTimeString(), code.length));
 
             // TODO: typescript REPL
             // code = `require("${Path.join(this.basePath, "node_modules/ts-node").replace(/\\/g, '\\\\')}").register({});\n${code}`;
@@ -127,7 +132,7 @@ export default class ReplClient {
 
     close() {
         if (this.outputChannel)
-            this.outputChannel.appendLine(`Disposing REPL server.`);
+            this.outputChannel.appendLine(i18nTexts.info.disposing);
 
         this.repl.send({ operation: 'exit' });
         this.repl = null;

@@ -38,13 +38,13 @@
     "contributes": {
         "commands": [{
             "command": "extension.nodejsRepl",
-            "title": "Node.js Interactive window (REPL)"
+            "title": "%command.extension.nodejsRepl%"
         }, {
             "command": "extension.nodejsReplCurrent",
-            "title": "Node.js Interactive window (REPL) at selected file"
+            "title": "%command.extension.nodejsReplCurrent%"
         }, {
             "command": "extension.nodejsReplClose",
-            "title": "Stop Node.js Interactive window (REPL)"
+            "title": "%command.extension.nodejsReplClose%"
         }]
     },
     "scripts": {
