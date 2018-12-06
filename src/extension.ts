@@ -63,7 +63,7 @@ export function activate(context: ExtensionContext) {
         commands.registerCommand('extension.nodejsReplClose', async () => {
             try {
                 if (!client.isClosed) {
-                    client.close();
+                    client.dispose();
                     editor = null;
                     doc = null;
                 }

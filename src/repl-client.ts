@@ -44,7 +44,9 @@ export default class ReplClient {
 
     constructor(private outputChannel: OutputChannel) {
         this.decorator = new Decorator(outputChannel);
+    }
 
+    private registerEventHandlers() {
         this.changeActiveDisposable = window.onDidChangeActiveTextEditor(async (editor) => {
             if (this.editor && editor && this.editor.document === editor.document) {
                 this.init(editor, editor.document);
@@ -87,6 +89,8 @@ export default class ReplClient {
     init(editor: TextEditor, doc: TextDocument) {
         this.outputChannel.appendLine(i18nTexts.info.initializing);
         this.outputChannel.appendLine(i18nTexts.warn.CRUD);
+
+        if (this.isDisposed) this.registerEventHandlers();
 
         this.editor = editor;
 
@@ -137,7 +141,6 @@ export default class ReplClient {
         this.repl.send({ operation: 'exit' });
         this.repl = null;
     }
-
     get isClosed() {
         return this.repl == null;
     }
@@ -149,5 +152,8 @@ export default class ReplClient {
         this.closeTextDocumentDisposable.dispose();
         this.changeEventDisposable.dispose();
         this.editor = null;
+    }
+    get isDisposed() {
+        return this.editor == null;
     }
 }
