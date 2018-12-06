@@ -46,7 +46,7 @@ export default class ReplClient {
         this.decorator = new Decorator(outputChannel);
 
         this.changeActiveDisposable = window.onDidChangeActiveTextEditor(async (editor) => {
-            if (this.editor && this.editor.document === editor.document) {
+            if (this.editor && editor && this.editor.document === editor.document) {
                 this.init(editor, editor.document);
                 this.interpret();
             }
