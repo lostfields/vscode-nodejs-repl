@@ -526,11 +526,16 @@ class NodeRepl extends EventEmitter {
                     if(Array.isArray(value))
                         return `[\n${injectSpaces(indent, 2)}${Array.from(value).map(value => this.serialize(value, indent > -1 ? indent + 2 : indent)).join(`,\n${injectSpaces(indent, 2)}`)}\n${injectSpaces(indent, 0)}]`
 
-                    let ret = `{\n`
-                    for(let key of Object.keys(value))
+                    let ret = `{\n`, num = 0
+                    for(let key of Object.keys(value)) {
                         ret += `${injectSpaces(indent, 4)}${key}: ${this.serialize(value[key], indent > -1 ? indent + 4 : indent)},\n`
+                        num++
+                    }
                     ret += `${injectSpaces(indent, 0)}}`
                 
+                    if(num == 0)
+                        return value.toString()
+
                     return ret
 
                 default:
