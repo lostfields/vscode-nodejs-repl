@@ -489,7 +489,7 @@ class NodeRepl extends EventEmitter {
         }
     }
 
-    private serialize(value: any, indent: number = 0): string {
+    private serialize(value: any, indent: number = 0, stack: Array<Object> = []): string {
         const injectSpaces = (indent, spaces: number) => {
             let ret = ''
 
@@ -522,13 +522,18 @@ class NodeRepl extends EventEmitter {
                 case 'object':
                     if(value == null)
                         return 'null'
-
+                    
                     if(Array.isArray(value))
-                        return `[\n${injectSpaces(indent, 2)}${Array.from(value).map(value => this.serialize(value, indent > -1 ? indent + 2 : indent)).join(`,\n${injectSpaces(indent, 2)}`)}\n${injectSpaces(indent, 0)}]`
+                        return `[\n${injectSpaces(indent, 2)}${Array.from(value).map(value => this.serialize(value, indent > -1 ? indent + 2 : indent, stack)).join(`,\n${injectSpaces(indent, 2)}`)}\n${injectSpaces(indent, 0)}]`
+
+                    if(stack.includes(value))
+                        return '[circular reference]'
+
+                    stack.push(value)
 
                     let ret = `{\n`, num = 0
                     for(let key of Object.keys(value)) {
-                        ret += `${injectSpaces(indent, 4)}${key}: ${this.serialize(value[key], indent > -1 ? indent + 4 : indent)},\n`
+                        ret += `${injectSpaces(indent, 4)}${key}: ${this.serialize(value[key], indent > -1 ? indent + 4 : indent, stack)},\n`
                         num++
                     }
                     ret += `${injectSpaces(indent, 0)}}`
