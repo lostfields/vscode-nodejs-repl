@@ -1,6 +1,21 @@
 # Changelog
 All changes done to Node.JS REPL will be kept here, according to [changelog format](http://keepachangelog.com/)
 
+## [0.5.12] - 2019-03-20
+### Changed
+- fixing circular references in serializer
+
+## [0.5.11] - 2018-12-17
+### Changed
+- fallback for serializer, using toString
+
+## [0.5.10] - 2018-12-05
+### Changed 
+- output fixes (thanks @plylrnsdy)
+- require should probably work better (thanks @plylrnsdy)
+- console.log with multiline
+- ... and a few more
+
 ## [0.4.9] - 2018-04-16
 ### Added
 - Stop command
