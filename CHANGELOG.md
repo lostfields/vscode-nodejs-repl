@@ -1,6 +1,10 @@
 # Changelog
 All changes done to Node.JS REPL will be kept here, according to [changelog format](http://keepachangelog.com/)
 
+## [0.5.13] - 2019-03-24
+### Changed
+- leave require path as is if it's not local and doesn't exist in node_modules
+
 ## [0.5.12] - 2019-03-20
 ### Changed
 - fixing circular references in serializer

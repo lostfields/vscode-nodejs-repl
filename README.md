@@ -25,7 +25,7 @@ Some want all, but right now I think it's working good. I want to look into impl
 
 ## Release Notes
 
-### 0.5.12
+### 0.5.13
 - fixing circular references in serializer
 - output fixes (thanks @plylrnsdy)
 - require should probably work better (thanks @plylrnsdy)
