@@ -21,8 +21,7 @@
 					"sourceMaps": true,
 					"outFiles": [
 						"${workspaceFolder:nodejs-repl}/out/**/*.js"
-					],
-					"preLaunchTask": "npm: watch"
+					]
 				},
 				{
 					"name": "Extension Tests",

@@ -1,6 +1,10 @@
 # Changelog
 All changes done to Node.JS REPL will be kept here, according to [changelog format](http://keepachangelog.com/)
 
+## [0.5.14] - 2020-01-20
+### Changed
+- trying to fix a few exceptions that occured since newer NodeJs is throwing errors a little different
+
 ## [0.5.13] - 2019-03-24
 ### Changed
 - leave require path as is if it's not local and doesn't exist in node_modules

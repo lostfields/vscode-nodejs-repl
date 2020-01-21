@@ -330,6 +330,8 @@ class NodeRepl extends EventEmitter {
             inputStream.push("");
 
             let repl = Repl.start({
+                terminal: false,
+                ignoreUndefined: true,
                 prompt: '',
                 input: inputStream,
                 output: new Writable({
@@ -344,7 +346,7 @@ class NodeRepl extends EventEmitter {
                             default:
                                 let match: RegExpExecArray;
 
-                                if( (match = /(\w+:\s.*)\n\s*at\s/gi.exec(out)) != null) {
+                                if( (match = /(?:Thrown:\n)?(\w+:\s.*)(?:\n\s*at\s)?/gi.exec(out)) != null) {
                                     this.output.set(lineCount, {line: lineCount, type: 'error', text: match[1], value: match[1]});               
                                     this.emit('output', {line: lineCount, type: 'error', text: match[1], value: match[1]});
                                     
@@ -374,6 +376,11 @@ class NodeRepl extends EventEmitter {
                 writer: (out) => {
                     if(out == null)
                         return;
+
+                    if(typeof out == 'object' &&'message' in out && 'stack' in out)
+                        return `${out.name}: ${out.message}`
+
+                    return out
                 }
             })
 
@@ -406,7 +413,7 @@ class NodeRepl extends EventEmitter {
                             })
                     }
 
-                    cb(err, result);
+                    cb(null, result);
                 })
             }
 
