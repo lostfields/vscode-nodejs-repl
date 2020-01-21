@@ -25,7 +25,7 @@ Some want all, but right now I think it's working good. I want to look into impl
 
 ## Release Notes
 
-### 0.5.14
+### 0.5.15
 - few bugfixes after errors is thrown different in newer NodeJs
 - fixing circular references in serializer
 - output fixes (thanks @plylrnsdy)
